@@ -20,7 +20,7 @@ const style = {
   p: 4,
 };
 
-function CreateRoomModal({ open, onClose, currentUser }) {
+function CreateRoomModal({ open, onClose, currentUser, onRoomCreated }) {
   const [roomName, setRoomName] = useState('');
   const [userNicknames, setUserNicknames] = useState('');
 
@@ -44,10 +44,12 @@ function CreateRoomModal({ open, onClose, currentUser }) {
         userNicknames: [currentUser.userNickname, ...invitedUserNicknames],
         roomType: 'GROUP', // 그룹 채팅방으로 생성
       };
-      await createChatRoom(roomData);
+      const response = await createChatRoom(roomData);
       alert('채팅방이 생성되었습니다.');
       onClose(); // 모달 닫기
-      window.location.reload(); // 페이지 새로고침하여 목록 갱신
+      if (onRoomCreated) {
+        onRoomCreated(response.data.roomId);
+      }
     } catch (error) {
       console.error('Failed to create chat room:', error);
       const errorMessage = error.response?.data?.error || '채팅방 생성에 실패했습니다. 존재하지 않는 닉네임이 포함되어 있을 수 있습니다.';

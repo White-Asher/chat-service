@@ -88,7 +88,8 @@ public class ChatService {
 
     @Transactional
     public void addParticipant(Long roomId, Long userId) {
-        RoomParticipantsHistory participant = participantsRepository.findByChatRoom_RoomIdAndUserBase_UserId(roomId, userId)
+        // 가장 최근 참여 기록을 조회하여 재사용하거나, 없으면 새로 생성합니다.
+        RoomParticipantsHistory participant = participantsRepository.findFirstByChatRoom_RoomIdAndUserBase_UserIdOrderByJoinedAtDesc(roomId, userId)
                 .orElseGet(() -> {
                     ChatRoom chatRoom = chatRoomRepository.findById(roomId)
                             .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다. ID: " + roomId));
@@ -100,6 +101,12 @@ public class ChatService {
                     return newParticipant;
                 });
 
+        // 이미 활성 상태(퇴장 기록 없음)이면 아무것도 하지 않습니다.
+        if (participant.getQuitAt() == null) {
+            return;
+        }
+
+        // 비활성 상태이면 재입장 처리
         participant.setJoinedAt(LocalDateTime.now());
         participant.setQuitAt(null); // 재입장 시 퇴장 시간 초기화
         participantsRepository.save(participant);
@@ -107,12 +114,11 @@ public class ChatService {
 
     @Transactional
     public void removeParticipant(Long roomId, Long userId) {
-        participantsRepository.findByChatRoom_RoomIdAndUserBase_UserId(roomId, userId)
+        // 활성 상태('quitAt'이 null)인 참여 기록을 찾아 퇴장 시간을 기록합니다.
+        participantsRepository.findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(roomId, userId)
                 .ifPresent(participant -> {
-                    if (participant.getQuitAt() == null) {
-                        participant.setQuitAt(LocalDateTime.now());
-                        participantsRepository.save(participant);
-                    }
+                    participant.setQuitAt(LocalDateTime.now());
+                    participantsRepository.save(participant);
                 });
     }
 

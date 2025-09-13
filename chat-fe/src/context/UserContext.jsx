@@ -1,25 +1,56 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { checkSession, logout as apiLogout } from '../api';
 
-// 사용자 정보를 위한 Context 생성
 const UserContext = createContext(null);
 
-// 다른 컴포넌트에서 user 정보를 쉽게 사용하기 위한 custom hook
 export const useUser = () => useContext(UserContext);
 
-// 사용자 정보(user)와 로그인/로그아웃 함수(login/logout)를 제공하는 Provider
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const verifyUser = async () => {
+      try {
+        const response = await checkSession();
+        setUser(response.data);
+      } catch (error) {
+        // 401 오류는 로그인이 안된 정상적인 상태이므로 콘솔에 에러를 출력하지 않음
+        if (error.response && error.response.status === 401) {
+          setUser(null);
+        } else {
+          console.error("An unexpected error occurred during session check:", error);
+          setUser(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyUser();
+  }, []);
 
   const login = (userData) => {
     setUser(userData);
   };
 
-  const logout = () => {
-    setUser(null);
+  const logout = async () => {
+    try {
+      await apiLogout();
+    } catch (error) {
+      console.error("Logout failed", error);
+    } finally {
+      setUser(null);
+    }
   };
 
+  // 로딩 중일 때는 아무것도 렌더링하지 않거나 로딩 스피너를 보여줄 수 있습니다.
+  if (loading) {
+    return null; // 또는 <LoadingSpinner />
+  }
+
   return (
-    <UserContext.Provider value={{ user, login, logout }}>
+    <UserContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </UserContext.Provider>
   );

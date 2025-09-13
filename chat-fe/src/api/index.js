@@ -7,6 +7,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // 세션 쿠키를 주고받기 위해 추가
 });
 
 // 회원가입 API
@@ -17,6 +18,16 @@ export const signUp = (authData) => {
 // 로그인 API
 export const login = (authData) => {
   return apiClient.post('/users/login', authData);
+};
+
+// 로그아웃 API
+export const logout = () => {
+  return apiClient.post('/users/logout');
+};
+
+// 세션 확인 및 내 정보 조회 API
+export const checkSession = () => {
+  return apiClient.get('/users/me');
 };
 
 // 특정 사용자가 참여한 모든 채팅방 목록 조회 API

@@ -11,11 +11,9 @@ const theme = createTheme({
 });
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      {/* CssBaseline: 브라우저 기본 CSS를 초기화하여 일관된 스타일 적용 */}
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
-  </React.StrictMode>,
+  <ThemeProvider theme={theme}>
+    {/* CssBaseline: 브라우저 기본 CSS를 초기화하여 일관된 스타일 적용 */}
+    <CssBaseline />
+    <App />
+  </ThemeProvider>,
 );

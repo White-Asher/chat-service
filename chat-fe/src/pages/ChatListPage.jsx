@@ -47,8 +47,8 @@ function ChatListPage() {
     navigate(`/chat/room/${roomId}`);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
@@ -105,6 +105,10 @@ function ChatListPage() {
         open={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         currentUser={user}
+        onRoomCreated={(roomId) => {
+          setIsModalOpen(false);
+          navigate(`/chat/room/${roomId}`);
+        }}
       />
     </>
   );

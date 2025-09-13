@@ -11,4 +11,10 @@ public interface RoomParticipantsHistoryRepository extends JpaRepository<RoomPar
 
     List<RoomParticipantsHistory> findByChatRoom_RoomIdAndQuitAtIsNull(Long roomId);
 
+    // 특정 방, 특정 유저의 '활성'된 참여 정보를 찾기 위한 메소드
+    Optional<RoomParticipantsHistory> findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(Long roomId, Long userId);
+
+    // 특정 방, 특정 유저의 '가장 최근' 참여 정보를 찾기 위한 메소드
+    Optional<RoomParticipantsHistory> findFirstByChatRoom_RoomIdAndUserBase_UserIdOrderByJoinedAtDesc(Long roomId, Long userId);
+
 }
