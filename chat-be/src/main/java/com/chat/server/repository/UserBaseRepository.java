@@ -1,0 +1,23 @@
+package com.chat.server.repository;
+
+import com.chat.server.domain.UserBase;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
+
+public interface UserBaseRepository extends JpaRepository<UserBase, Long> {
+
+    /**
+     * 닉네임으로 사용자가 존재하는지 확인한다.
+     * Spring Data JPA의 쿼리 메소드 기능에 의해 자동으로 쿼리가 생성된다.
+     * @param userNickname 확인할 닉네임
+     * @return 존재하면 true, 아니면 false
+     */
+    boolean existsByUserNickname(String userNickname);
+
+    /**
+     * 닉네임으로 사용자 정보를 조회한다. (선택적)
+     * @param nickname 조회할 닉네임
+     * @return Optional<UserBase>
+     */
+    Optional<UserBase> findByUserNickname(String nickname);
+}
