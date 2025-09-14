@@ -36,65 +36,67 @@ function SignUpPage() {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Paper elevation={3} sx={{ mt: 8, p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Typography component="h1" variant="h5">
-          회원가입
-        </Typography>
-        <Box sx={{ mt: 3, width: '100%' }}>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="loginId"
-            label="아이디"
-            name="loginId"
-            autoFocus
-            value={loginId}
-            onChange={(e) => setLoginId(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            name="password"
-            label="비밀번호"
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="nickname"
-            label="닉네임"
-            name="nickname"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSignUp()}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-            onClick={handleSignUp}
-          >
+    <Grid container spacing={0} direction="column" alignItems="center" justifyContent="center" sx={{ minHeight: '100vh' }}>
+      <Grid item>
+        <Paper elevation={3} sx={{ p: 4, width: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center', backgroundColor: 'background.paper' }}>
+          <Typography component="h1" variant="h5">
             회원가입
-          </Button>
-          <Grid container justifyContent="flex-end">
-            <Grid item>
-              <Link to="/" variant="body2">
-                이미 계정이 있으신가요? 로그인
-              </Link>
+          </Typography>
+          <Box sx={{ mt: 3, width: '100%' }}>
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="loginId"
+              label="아이디"
+              name="loginId"
+              autoFocus
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="비밀번호"
+              type="password"
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="nickname"
+              label="닉네임"
+              name="nickname"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSignUp()}
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              onClick={handleSignUp}
+            >
+              회원가입
+            </Button>
+            <Grid container justifyContent="flex-end">
+              <Grid item>
+                <Link to="/" style={{ color: 'white', textDecoration: 'underline' }}>
+                  이미 계정이 있으신가요? 로그인
+                </Link>
+              </Grid>
             </Grid>
-          </Grid>
-        </Box>
-      </Paper>
-    </Container>
+          </Box>
+        </Paper>
+      </Grid>
+    </Grid>
   );
 }
 

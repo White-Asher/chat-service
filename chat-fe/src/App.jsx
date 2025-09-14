@@ -3,38 +3,37 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { UserProvider, useUser } from './context/UserContext.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignUpPage from './pages/SignUpPage.jsx';
-import ChatListPage from './pages/ChatListPage.jsx';
-import ChatRoomPage from './pages/ChatRoomPage.jsx';
-import { Container } from '@mui/material';
+import MainChatPage from './pages/MainChatPage.jsx'; // New main chat page
+import { Box } from '@mui/material';
 import SessionTimer from './components/SessionTimer';
 import SessionRenewalModal from './components/SessionRenewalModal';
 import SessionExpiredModal from './components/SessionExpiredModal';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useUser();
-  if (loading) return null; // 세션 확인 중에는 렌더링하지 않음
+  if (loading) return null;
   return user ? children : <Navigate to="/" />;
 }
 
 function PublicRoute({ children }) {
   const { user, loading } = useUser();
-  if (loading) return null; // 세션 확인 중에는 렌더링하지 않음
+  if (loading) return null;
   return user ? <Navigate to="/chat" /> : children;
 }
 
 function AppContent() {
   return (
-    <Container maxWidth="lg" sx={{ mt: 1, mb: 1, height: '98vh' }}>
+    <Box sx={{ height: '100%', width: '100%' }}>
       <SessionTimer />
       <SessionRenewalModal />
       <SessionExpiredModal />
       <Routes>
         <Route path="/" element={<PublicRoute><LoginPage /></PublicRoute>} />
         <Route path="/signup" element={<PublicRoute><SignUpPage /></PublicRoute>} />
-        <Route path="/chat" element={<PrivateRoute><ChatListPage /></PrivateRoute>} />
-        <Route path="/chat/room/:roomId" element={<PrivateRoute><ChatRoomPage /></PrivateRoute>} />
+        <Route path="/chat" element={<PrivateRoute><MainChatPage /></PrivateRoute>} />
+        <Route path="/chat/room/:roomId" element={<PrivateRoute><MainChatPage /></PrivateRoute>} />
       </Routes>
-    </Container>
+    </Box>
   );
 }
 
