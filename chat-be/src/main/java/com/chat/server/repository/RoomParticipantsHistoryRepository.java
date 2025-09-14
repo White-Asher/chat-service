@@ -17,4 +17,7 @@ public interface RoomParticipantsHistoryRepository extends JpaRepository<RoomPar
     // 특정 방, 특정 유저의 '가장 최근' 참여 정보를 찾기 위한 메소드
     Optional<RoomParticipantsHistory> findFirstByChatRoom_RoomIdAndUserBase_UserIdOrderByJoinedAtDesc(Long roomId, Long userId);
 
+    // 특정 방의 모든 참여 기록을 입장 시간 역순으로 조회
+    List<RoomParticipantsHistory> findByChatRoom_RoomIdOrderByJoinedAtDesc(Long roomId);
+
 }

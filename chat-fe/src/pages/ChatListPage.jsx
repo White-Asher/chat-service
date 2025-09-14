@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getChatRoomsByUserId } from '../api';
+import { getChatRoomsByUserId, leaveChatRoom } from '../api';
 import CreateRoomModal from '../components/CreateRoomModal';
 import {
   List,
@@ -14,10 +14,12 @@ import {
   CircularProgress,
   AppBar,
   Toolbar,
-  IconButton
+  IconButton,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
+import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 나가기 아이콘
 
 function ChatListPage() {
   const { user, logout } = useUser();
@@ -52,6 +54,19 @@ function ChatListPage() {
     navigate('/');
   };
 
+  const handleLeaveRoom = async (roomId, roomName) => {
+    if (window.confirm(`${roomName} 채팅방을 정말 나가시겠습니까?`)) {
+      try {
+        await leaveChatRoom(roomId);
+        setRooms((prevRooms) => prevRooms.filter((room) => room.roomId !== roomId));
+        alert(`${roomName} 채팅방에서 나갔습니다.`);
+      } catch (error) {
+        console.error('Failed to leave chat room:', error);
+        alert('채팅방을 나가는 데 실패했습니다.');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -83,6 +98,15 @@ function ChatListPage() {
                   secondary={`참여자: ${room.participants.length}명`}
                 />
               </ListItemButton>
+              <ListItemSecondaryAction>
+                <IconButton
+                  edge="end"
+                  aria-label="leave"
+                  onClick={() => handleLeaveRoom(room.roomId, room.roomName)}
+                >
+                  <ExitToAppIcon />
+                </IconButton>
+              </ListItemSecondaryAction>
             </ListItem>
           ))
         ) : (

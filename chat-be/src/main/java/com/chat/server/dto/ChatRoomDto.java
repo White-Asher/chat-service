@@ -1,8 +1,10 @@
 package com.chat.server.dto;
 
 import com.chat.server.domain.ChatRoom;
+import com.chat.server.domain.RoomParticipantsHistory;
 import lombok.Builder;
 import lombok.Data;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,5 +36,21 @@ public class ChatRoomDto {
         private String roomName;
         private String roomType;
         private List<String> userNicknames;
+    }
+
+    @Data
+    @Builder
+    public static class ParticipantHistory {
+        private String userNickname;
+        private LocalDateTime joinedAt;
+        private LocalDateTime quitAt;
+
+        public static ParticipantHistory fromEntity(RoomParticipantsHistory history) {
+            return ParticipantHistory.builder()
+                    .userNickname(history.getUserBase().getUserNickname())
+                    .joinedAt(history.getJoinedAt())
+                    .quitAt(history.getQuitAt())
+                    .build();
+        }
     }
 }

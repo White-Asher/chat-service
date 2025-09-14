@@ -127,4 +127,41 @@ public class ChatService {
                 .map(participant -> UserDto.fromEntity(participant.getUserBase()))
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public void inviteUsersToRoom(Long roomId, List<String> userNicknames) {
+        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다. ID: " + roomId));
+
+        for (String nickname : userNicknames) {
+            UserBase user = userBaseRepository.findByUserNickname(nickname)
+                    .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. 닉네임: " + nickname));
+
+            // 이미 참여 중인 사용자인지 확인
+            boolean isAlreadyParticipant = participantsRepository.findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(roomId, user.getUserId()).isPresent();
+            
+            if (!isAlreadyParticipant) {
+                // 새로운 참여자 기록 생성 또는 기존 기록 재활성화
+                RoomParticipantsHistory participant = participantsRepository.findFirstByChatRoom_RoomIdAndUserBase_UserIdOrderByJoinedAtDesc(roomId, user.getUserId())
+                        .orElseGet(() -> {
+                            RoomParticipantsHistory newParticipant = new RoomParticipantsHistory();
+                            newParticipant.setChatRoom(chatRoom);
+                            newParticipant.setUserBase(user);
+                            return newParticipant;
+                        });
+
+                // 입장 시간 설정 및 퇴장 시간 초기화
+                participant.setJoinedAt(LocalDateTime.now());
+                participant.setQuitAt(null);
+                participantsRepository.save(participant);
+            }
+        }
+    }
+
+    public List<ChatRoomDto.ParticipantHistory> getParticipantsHistory(Long roomId) {
+        List<RoomParticipantsHistory> histories = participantsRepository.findByChatRoom_RoomIdOrderByJoinedAtDesc(roomId);
+        return histories.stream()
+                .map(ChatRoomDto.ParticipantHistory::fromEntity)
+                .collect(Collectors.toList());
+    }
 }

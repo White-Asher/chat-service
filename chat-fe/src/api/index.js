@@ -10,6 +10,37 @@ const apiClient = axios.create({
   withCredentials: true, // 세션 쿠키를 주고받기 위해 추가
 });
 
+// 인터셉터 설정 함수
+export const setupInterceptors = (logoutHandler, resetSessionTimerHandler) => {
+  apiClient.interceptors.response.use(
+    (response) => {
+      // 401 오류가 아니고, 로그인/회원가입/세션확인 요청이 아닌 경우에만 타이머 재설정
+      if (
+        response.config.url &&
+        response.config.url.startsWith('/api/') && // API 요청인 경우에만
+        !response.config.url.endsWith('/login') &&
+        !response.config.url.endsWith('/signup') &&
+        !response.config.url.endsWith('/me')
+      ) {
+        resetSessionTimerHandler();
+      }
+      return response; // 성공적인 응답은 그대로 반환
+    },
+    (error) => {
+      // 401 오류이고, 로그인/세션확인 요청이 아닌 경우에만 로그아웃 처리
+      if (
+        error.response &&
+        error.response.status === 401 &&
+        !error.config.url.endsWith('/login') &&
+        !error.config.url.endsWith('/me')
+      ) {
+        logoutHandler(true); // 세션 만료로 인한 로그아웃임을 알림
+      }
+      return Promise.reject(error);
+    }
+  );
+};
+
 // 회원가입 API
 export const signUp = (authData) => {
   return apiClient.post('/users/signup', authData);
@@ -48,6 +79,21 @@ export const getMessagesByRoomId = (roomId) => {
 // 특정 채팅방 정보 조회 API
 export const getRoomInfo = (roomId) => {
   return apiClient.get(`/chat/room/${roomId}`);
+};
+
+// 채팅방 나가기 API
+export const leaveChatRoom = (roomId) => {
+  return apiClient.post(`/chat/room/${roomId}/leave`);
+};
+
+// 채팅방에 사용자 초대 API
+export const inviteUsersToRoom = (roomId, userNicknames) => {
+  return apiClient.post(`/chat/room/${roomId}/invite`, userNicknames);
+};
+
+// 채팅방 참여자 입장/퇴장 기록 조회 API
+export const getParticipantsHistory = (roomId) => {
+  return apiClient.get(`/chat/room/${roomId}/participants/history`);
 };
 
 export default apiClient;

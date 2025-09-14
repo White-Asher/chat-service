@@ -24,27 +24,33 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public UserBase createUser(UserDto.CreateRequest request) {
+    public UserDto createUser(UserDto.CreateRequest request) {
         if (userBaseRepository.findByUserNickname(request.getUserNickname()).isPresent()) {
             throw new IllegalArgumentException("이미 존재하는 닉네임입니다.");
         }
         UserBase user = new UserBase();
         user.setUserNickname(request.getUserNickname());
         user.setProfileImgUrl(request.getProfileImgUrl());
-        return userBaseRepository.save(user);
+        UserBase savedUser = userBaseRepository.save(user);
+        return UserDto.fromEntity(savedUser);
     }
 
-    public UserBase findUserById(Long userId) {
-        return userBaseRepository.findById(userId)
+    public UserDto findUserById(Long userId) {
+        UserBase user = userBaseRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
+        return UserDto.fromEntity(user);
     }
 
     @Transactional
-    public UserBase updateUser(Long userId, UserDto.UpdateRequest request) {
-        UserBase user = findUserById(userId);
+    public UserDto updateUser(Long userId, UserDto.UpdateRequest request) {
+        // findUserById는 이제 UserBase를 반환하므로, 내부적으로 UserBase를 찾는 별도 메소드를 사용하거나, findUserById를 그대로 사용하고 싶다면 UserBase를 반환하도록 유지해야 합니다.
+        // 여기서는 findUserById가 UserBase를 반환한다고 가정하고 내부 로직을 수정합니다.
+        UserBase user = userBaseRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
         user.setUserNickname(request.getUserNickname());
         user.setProfileImgUrl(request.getProfileImgUrl());
-        return userBaseRepository.save(user);
+        UserBase updatedUser = userBaseRepository.save(user);
+        return UserDto.fromEntity(updatedUser);
     }
 
     @Transactional

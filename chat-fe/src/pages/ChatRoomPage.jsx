@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getMessagesByRoomId, getRoomInfo } from '../api';
+import { getMessagesByRoomId, getRoomInfo, inviteUsersToRoom, getParticipantsHistory } from '../api';
 import { connect, disconnect } from '../services/stompClient';
 import {
   Box,
@@ -16,12 +16,34 @@ import {
   Toolbar,
   Drawer,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PeopleIcon from '@mui/icons-material/People';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import HistoryIcon from '@mui/icons-material/History';
 
 const drawerWidth = 240;
+
+// 시간 포맷터
+const formatTime = (value) => {
+  if (!value) return '';
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleString('ko-KR', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+  } catch {
+    return '';
+  }
+};
 
 function ChatRoomPage() {
   const { roomId } = useParams();
@@ -33,6 +55,10 @@ function ChatRoomPage() {
   const [participants, setParticipants] = useState([]);
   const [roomName, setRoomName] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [inviteNicknames, setInviteNicknames] = useState('');
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [participantsHistory, setParticipantsHistory] = useState([]);
 
   const stompClientRef = useRef(null);
   const messageEndRef = useRef(null);
@@ -74,16 +100,17 @@ function ChatRoomPage() {
           setMessages((prevMessages) => [...prevMessages, receivedMessage]);
         });
 
-        client.publish({
-          destination: '/app/chat/message',
-          body: JSON.stringify({
-            type: 'JOIN',
-            roomId: roomId,
-            senderId: user.userId,
-            senderNickname: user.userNickname,
-            message: '',
-          }),
-        });
+        // JOIN 이벤트 제거 - 실제 입장은 채팅방 생성/초대 시에만 처리
+        // client.publish({
+        //   destination: '/app/chat/message',
+        //   body: JSON.stringify({
+        //     type: 'JOIN',
+        //     roomId: roomId,
+        //     senderId: user.userId,
+        //     senderNickname: user.userNickname,
+        //     message: '',
+        //   }),
+        // });
       },
       (error) => {
         console.error('WebSocket connection error:', error);
@@ -91,18 +118,19 @@ function ChatRoomPage() {
     );
 
     return () => {
-      if (stompClientRef.current && stompClientRef.current.connected) {
-        stompClientRef.current.publish({
-          destination: '/app/chat/message',
-          body: JSON.stringify({
-            type: 'LEAVE',
-            roomId: roomId,
-            senderId: user.userId,
-            senderNickname: user.userNickname,
-            message: '',
-          }),
-        });
-      }
+      // LEAVE 이벤트 제거 - 실제 퇴장은 채팅방 목록에서 나가기 버튼 클릭 시에만 처리
+      // if (stompClientRef.current && stompClientRef.current.connected) {
+      //   stompClientRef.current.publish({
+      //     destination: '/app/chat/message',
+      //     body: JSON.stringify({
+      //       type: 'LEAVE',
+      //       roomId: roomId,
+      //       senderId: user.userId,
+      //       senderNickname: user.userNickname,
+      //       message: '',
+      //     }),
+      //   });
+      // }
       disconnect();
     };
   }, [roomId, user, navigate]);
@@ -130,6 +158,44 @@ function ChatRoomPage() {
     setDrawerOpen(!drawerOpen);
   };
 
+  const handleInviteUsers = async () => {
+    if (!inviteNicknames.trim()) {
+      alert('초대할 사용자의 닉네임을 입력해주세요.');
+      return;
+    }
+
+    const nicknames = inviteNicknames.split(',').map(nickname => nickname.trim()).filter(nickname => nickname);
+    
+    if (nicknames.length === 0) {
+      alert('올바른 닉네임을 입력해주세요.');
+      return;
+    }
+
+    try {
+      await inviteUsersToRoom(roomId, nicknames);
+      alert(`${nicknames.join(', ')} 사용자를 초대했습니다.`);
+      setInviteModalOpen(false);
+      setInviteNicknames('');
+      // 참여자 목록 새로고침
+      const roomInfoResponse = await getRoomInfo(roomId);
+      setParticipants(roomInfoResponse.data.participants);
+    } catch (error) {
+      console.error('Failed to invite users:', error);
+      alert('사용자 초대에 실패했습니다. 존재하지 않는 닉네임이 포함되어 있을 수 있습니다.');
+    }
+  };
+
+  const handleViewHistory = async () => {
+    try {
+      const response = await getParticipantsHistory(roomId);
+      setParticipantsHistory(response.data);
+      setHistoryModalOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch participants history:', error);
+      alert('참여자 기록 조회에 실패했습니다.');
+    }
+  };
+
   const isNotification = (msg) => msg.type === 'JOIN' || msg.type === 'LEAVE';
 
   return (
@@ -143,6 +209,12 @@ function ChatRoomPage() {
             <Typography variant="h6" sx={{ ml: 2, flexGrow: 1 }}>
               {roomName || '채팅방'}
             </Typography>
+            <IconButton color="inherit" onClick={() => setInviteModalOpen(true)} title="사용자 초대">
+              <PersonAddIcon />
+            </IconButton>
+            <IconButton color="inherit" onClick={handleViewHistory} title="입장/퇴장 기록">
+              <HistoryIcon />
+            </IconButton>
             <IconButton color="inherit" onClick={handleDrawerToggle}>
               <PeopleIcon />
             </IconButton>
@@ -162,7 +234,7 @@ function ChatRoomPage() {
               >
                 {isNotification(msg) ? (
                   <Typography variant="body2" color="text.secondary">
-                    {msg.message}
+                    {`${formatTime(msg.createdAt)} • ${msg.senderNickname}님이 ${msg.type === 'JOIN' ? '입장' : '퇴장'}하셨습니다.`}
                   </Typography>
                 ) : (
                   <Box
@@ -176,6 +248,11 @@ function ChatRoomPage() {
                   >
                     <Typography variant="caption" display="block">{msg.senderNickname}</Typography>
                     <ListItemText primary={msg.message} />
+                    {msg.createdAt && (
+                      <Typography variant="caption" sx={{ display: 'block', textAlign: 'right', opacity: 0.7, mt: 0.5 }}>
+                        {formatTime(msg.createdAt)}
+                      </Typography>
+                    )}
                   </Box>
                 )}
               </ListItem>
@@ -224,6 +301,58 @@ function ChatRoomPage() {
           ))}
         </List>
       </Drawer>
+
+      {/* 사용자 초대 모달 */}
+      <Dialog open={inviteModalOpen} onClose={() => setInviteModalOpen(false)}>
+        <DialogTitle>사용자 초대</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="초대할 사용자 닉네임 (쉼표로 구분)"
+            placeholder="예: user2, user3"
+            fullWidth
+            variant="outlined"
+            value={inviteNicknames}
+            onChange={(e) => setInviteNicknames(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInviteModalOpen(false)}>취소</Button>
+          <Button onClick={handleInviteUsers} variant="contained">초대</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 참여자 기록 모달 */}
+      <Dialog open={historyModalOpen} onClose={() => setHistoryModalOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>참여자 입장/퇴장 기록</DialogTitle>
+        <DialogContent>
+          <List>
+            {participantsHistory.map((history, index) => (
+              <ListItem key={index}>
+                <ListItemText
+                  primary={`${history.userNickname}님`}
+                  secondary={
+                    <div>
+                      <div>입장: {formatTime(history.joinedAt)}</div>
+                      {history.quitAt && <div>퇴장: {formatTime(history.quitAt)}</div>}
+                      {!history.quitAt && <div style={{ color: 'green' }}>현재 참여 중</div>}
+                    </div>
+                  }
+                />
+              </ListItem>
+            ))}
+            {participantsHistory.length === 0 && (
+              <Typography sx={{ textAlign: 'center', mt: 2 }}>
+                기록이 없습니다.
+              </Typography>
+            )}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHistoryModalOpen(false)}>닫기</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
