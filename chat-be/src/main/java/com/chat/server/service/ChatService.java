@@ -7,6 +7,7 @@ import com.chat.server.dto.UserDto;
 import com.chat.server.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -23,6 +24,7 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final UserBaseRepository userBaseRepository;
     private final RoomParticipantsHistoryRepository participantsRepository;
+    private final SimpMessageSendingOperations messagingTemplate; // WebSocket 메시지 전송용
 
     @Transactional
     public ChatRoomDto createChatRoom(ChatRoomDto.CreateRequest request) {
@@ -31,11 +33,13 @@ public class ChatService {
         chatRoom.setRoomType(request.getRoomType());
         chatRoom.setIsActive("Y");
 
-        List<RoomParticipantsHistory> participants = request.getUserNicknames().stream()
-                .map(nickname -> {
-                    UserBase user = userBaseRepository.findByUserNickname(nickname)
-                            .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. 닉네임: " + nickname));
+        List<UserBase> users = request.getUserNicknames().stream()
+            .map(nickname -> userBaseRepository.findByUserNickname(nickname)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. 닉네임: " + nickname)))
+            .collect(Collectors.toList());
 
+        List<RoomParticipantsHistory> participants = users.stream()
+                .map(user -> {
                     RoomParticipantsHistory participant = new RoomParticipantsHistory();
                     participant.setChatRoom(chatRoom);
                     participant.setUserBase(user);
@@ -45,13 +49,23 @@ public class ChatService {
 
         chatRoom.getParticipants().addAll(participants);
         ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
-        // 저장된 엔티티를 DTO로 변환하여 반환
+
+        // 생성 후 참여자들에게 JOIN 메시지 전송
+        users.forEach(user -> {
+            sendJoinNotification(savedChatRoom.getRoomId(), user);
+        });
+
         return ChatRoomDto.fromEntity(savedChatRoom);
     }
 
     public List<ChatRoomDto> findRoomsByUserId(Long userId) {
-        List<ChatRoom> chatRooms = chatRoomRepository.findChatRoomsByUserId(userId);
-        // 조회된 엔티티 리스트를 DTO 리스트로 변환
+        // 사용자가 나가지 않은(quitAt is NULL) 채팅방만 조회하도록 수정
+        List<ChatRoom> chatRooms = participantsRepository.findByUserBase_UserIdAndQuitAtIsNull(userId)
+                .stream()
+                .map(RoomParticipantsHistory::getChatRoom)
+                .distinct()
+                .collect(Collectors.toList());
+
         return chatRooms.stream()
                 .map(ChatRoomDto::fromEntity)
                 .collect(Collectors.toList());
@@ -59,7 +73,6 @@ public class ChatService {
 
     public List<ChatMessageDto> findMessagesByRoomId(Long roomId) {
         List<ChatMessage> messages = chatMessageRepository.findByChatRoom_RoomIdOrderByCreatedAtAsc(roomId);
-        // 조회된 엔티티 리스트를 DTO 리스트로 변환
         return messages.stream()
                 .map(ChatMessageDto::fromEntity)
                 .collect(Collectors.toList());
@@ -87,38 +100,17 @@ public class ChatService {
     }
 
     @Transactional
-    public void addParticipant(Long roomId, Long userId) {
-        // 가장 최근 참여 기록을 조회하여 재사용하거나, 없으면 새로 생성합니다.
-        RoomParticipantsHistory participant = participantsRepository.findFirstByChatRoom_RoomIdAndUserBase_UserIdOrderByJoinedAtDesc(roomId, userId)
-                .orElseGet(() -> {
-                    ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                            .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다. ID: " + roomId));
-                    UserBase user = userBaseRepository.findById(userId)
-                            .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. ID: " + userId));
-                    RoomParticipantsHistory newParticipant = new RoomParticipantsHistory();
-                    newParticipant.setChatRoom(chatRoom);
-                    newParticipant.setUserBase(user);
-                    return newParticipant;
-                });
-
-        // 이미 활성 상태(퇴장 기록 없음)이면 아무것도 하지 않습니다.
-        if (participant.getQuitAt() == null) {
-            return;
-        }
-
-        // 비활성 상태이면 재입장 처리
-        participant.setJoinedAt(LocalDateTime.now());
-        participant.setQuitAt(null); // 재입장 시 퇴장 시간 초기화
-        participantsRepository.save(participant);
-    }
-
-    @Transactional
     public void removeParticipant(Long roomId, Long userId) {
-        // 활성 상태('quitAt'이 null)인 참여 기록을 찾아 퇴장 시간을 기록합니다.
+        UserBase user = userBaseRepository.findById(userId)
+            .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. ID: " + userId));
+
         participantsRepository.findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(roomId, userId)
                 .ifPresent(participant -> {
                     participant.setQuitAt(LocalDateTime.now());
                     participantsRepository.save(participant);
+
+                    // 퇴장 알림 메시지 전송
+                    sendLeaveNotification(roomId, user);
                 });
     }
 
@@ -137,11 +129,9 @@ public class ChatService {
             UserBase user = userBaseRepository.findByUserNickname(nickname)
                     .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. 닉네임: " + nickname));
 
-            // 이미 참여 중인 사용자인지 확인
             boolean isAlreadyParticipant = participantsRepository.findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(roomId, user.getUserId()).isPresent();
-            
+
             if (!isAlreadyParticipant) {
-                // 새로운 참여자 기록 생성 또는 기존 기록 재활성화
                 RoomParticipantsHistory participant = participantsRepository.findFirstByChatRoom_RoomIdAndUserBase_UserIdOrderByJoinedAtDesc(roomId, user.getUserId())
                         .orElseGet(() -> {
                             RoomParticipantsHistory newParticipant = new RoomParticipantsHistory();
@@ -150,13 +140,42 @@ public class ChatService {
                             return newParticipant;
                         });
 
-                // 입장 시간 설정 및 퇴장 시간 초기화
                 participant.setJoinedAt(LocalDateTime.now());
                 participant.setQuitAt(null);
                 participantsRepository.save(participant);
+
+                // 초대된 사용자에게 JOIN 메시지 전송
+                sendJoinNotification(roomId, user);
             }
         }
     }
+
+    private void sendJoinNotification(Long roomId, UserBase user) {
+        ChatMessageDto joinMessage = ChatMessageDto.builder()
+            .type(ChatMessageDto.MessageType.JOIN)
+            .roomId(roomId)
+            .senderId(user.getUserId())
+            .senderNickname(user.getUserNickname())
+            .message(user.getUserNickname() + "님이 채팅방에 참여했습니다.")
+            .createdAt(LocalDateTime.now())
+            .participants(getRoomParticipants(roomId)) // 최신 참여자 목록
+            .build();
+        messagingTemplate.convertAndSend("/topic/chat/room/" + roomId, joinMessage);
+    }
+
+    private void sendLeaveNotification(Long roomId, UserBase user) {
+        ChatMessageDto leaveMessage = ChatMessageDto.builder()
+            .type(ChatMessageDto.MessageType.LEAVE)
+            .roomId(roomId)
+            .senderId(user.getUserId())
+            .senderNickname(user.getUserNickname())
+            .message(user.getUserNickname() + "님이 채팅방에서 나갔습니다.")
+            .createdAt(LocalDateTime.now())
+            .participants(getRoomParticipants(roomId)) // 최신 참여자 목록
+            .build();
+        messagingTemplate.convertAndSend("/topic/chat/room/" + roomId, leaveMessage);
+    }
+
 
     public List<ChatRoomDto.ParticipantHistory> getParticipantsHistory(Long roomId) {
         List<RoomParticipantsHistory> histories = participantsRepository.findByChatRoom_RoomIdOrderByJoinedAtDesc(roomId);

@@ -90,27 +90,16 @@ function ChatRoomPage() {
         stompClientRef.current = client;
         client.subscribe(`/topic/chat/room/${roomId}`, (message) => {
           const receivedMessage = JSON.parse(message.body);
-          
+
+          // JOIN, LEAVE 타입일 경우 참여자 목록 업데이트
           if (receivedMessage.type === 'JOIN' || receivedMessage.type === 'LEAVE') {
             if (receivedMessage.participants) {
               setParticipants(receivedMessage.participants);
             }
           }
-          // TALK, JOIN, LEAVE 모두 메시지 목록에 추가
+          // 모든 타입의 메시지를 메시지 목록에 추가
           setMessages((prevMessages) => [...prevMessages, receivedMessage]);
         });
-
-        // JOIN 이벤트 제거 - 실제 입장은 채팅방 생성/초대 시에만 처리
-        // client.publish({
-        //   destination: '/app/chat/message',
-        //   body: JSON.stringify({
-        //     type: 'JOIN',
-        //     roomId: roomId,
-        //     senderId: user.userId,
-        //     senderNickname: user.userNickname,
-        //     message: '',
-        //   }),
-        // });
       },
       (error) => {
         console.error('WebSocket connection error:', error);
@@ -118,19 +107,6 @@ function ChatRoomPage() {
     );
 
     return () => {
-      // LEAVE 이벤트 제거 - 실제 퇴장은 채팅방 목록에서 나가기 버튼 클릭 시에만 처리
-      // if (stompClientRef.current && stompClientRef.current.connected) {
-      //   stompClientRef.current.publish({
-      //     destination: '/app/chat/message',
-      //     body: JSON.stringify({
-      //       type: 'LEAVE',
-      //       roomId: roomId,
-      //       senderId: user.userId,
-      //       senderNickname: user.userNickname,
-      //       message: '',
-      //     }),
-      //   });
-      // }
       disconnect();
     };
   }, [roomId, user, navigate]);
@@ -165,7 +141,7 @@ function ChatRoomPage() {
     }
 
     const nicknames = inviteNicknames.split(',').map(nickname => nickname.trim()).filter(nickname => nickname);
-    
+
     if (nicknames.length === 0) {
       alert('올바른 닉네임을 입력해주세요.');
       return;
@@ -176,9 +152,7 @@ function ChatRoomPage() {
       alert(`${nicknames.join(', ')} 사용자를 초대했습니다.`);
       setInviteModalOpen(false);
       setInviteNicknames('');
-      // 참여자 목록 새로고침
-      const roomInfoResponse = await getRoomInfo(roomId);
-      setParticipants(roomInfoResponse.data.participants);
+      // 참여자 목록은 WebSocket을 통해 자동으로 갱신됩니다.
     } catch (error) {
       console.error('Failed to invite users:', error);
       alert('사용자 초대에 실패했습니다. 존재하지 않는 닉네임이 포함되어 있을 수 있습니다.');
@@ -234,7 +208,8 @@ function ChatRoomPage() {
               >
                 {isNotification(msg) ? (
                   <Typography variant="body2" color="text.secondary">
-                    {`${formatTime(msg.createdAt)} • ${msg.senderNickname}님이 ${msg.type === 'JOIN' ? '입장' : '퇴장'}하셨습니다.`}
+                    {/* 서버에서 받은 메시지를 그대로 표시 */}
+                    {`${formatTime(msg.createdAt)} • ${msg.message}`}
                   </Typography>
                 ) : (
                   <Box

@@ -20,4 +20,7 @@ public interface RoomParticipantsHistoryRepository extends JpaRepository<RoomPar
     // 특정 방의 모든 참여 기록을 입장 시간 역순으로 조회
     List<RoomParticipantsHistory> findByChatRoom_RoomIdOrderByJoinedAtDesc(Long roomId);
 
+    // 사용자가 현재 참여하고 있는(나가지 않은) 모든 참여 기록 조회
+    List<RoomParticipantsHistory> findByUserBase_UserIdAndQuitAtIsNull(Long userId);
+
 }

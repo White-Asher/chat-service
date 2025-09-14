@@ -7,6 +7,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
-    @Query("SELECT r FROM ChatRoom r JOIN r.participants p WHERE p.userBase.userId = :userId")
+    @Query("SELECT r FROM ChatRoom r JOIN r.participants p WHERE p.userBase.userId = :userId AND p.quitAt IS NULL")
     List<ChatRoom> findChatRoomsByUserId(@Param("userId") Long userId);
 }
