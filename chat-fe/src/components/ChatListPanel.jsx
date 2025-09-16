@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { getChatRoomsByUserId, leaveChatRoom } from '../api';
 import CreateRoomModal from './CreateRoomModal';
+import SessionTimer from './SessionTimer';
 import {
   List,
   ListItem,
@@ -92,7 +93,10 @@ function ChatListPanel({ selectedRoomId }) {
         borderRight: '1px solid #40444b'
       }}>
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{user?.userNickname}</Typography>
+          <div>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{user?.userNickname}</Typography>
+            <SessionTimer />
+          </div>
           <IconButton onClick={handleLogout} title="로그아웃">
             <LogoutIcon />
           </IconButton>

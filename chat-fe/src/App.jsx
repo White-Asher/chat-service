@@ -24,7 +24,6 @@ function PublicRoute({ children }) {
 function AppContent() {
   return (
     <Box sx={{ height: '100%', width: '100%' }}>
-      <SessionTimer />
       <SessionRenewalModal />
       <SessionExpiredModal />
       <Routes>
