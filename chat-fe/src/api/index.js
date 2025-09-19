@@ -96,4 +96,34 @@ export const getParticipantsHistory = (roomId) => {
   return apiClient.get(`/chat/room/${roomId}/participants/history`);
 };
 
+// Friend APIs
+export const searchUsers = (nickname) => {
+  return apiClient.get(`/friends/search?nickname=${nickname}`);
+};
+
+export const sendFriendRequest = (recipientId) => {
+  return apiClient.post('/friends/requests', { recipientId });
+};
+
+export const getPendingFriendRequests = () => {
+  return apiClient.get('/friends/requests/pending');
+};
+
+export const acceptFriendRequest = (friendId) => {
+  return apiClient.post(`/friends/requests/${friendId}/accept`);
+};
+
+export const rejectFriendRequest = (friendId) => {
+  return apiClient.delete(`/friends/requests/${friendId}`);
+};
+
+export const getFriendList = () => {
+  return apiClient.get('/friends');
+};
+
+export const removeFriend = (friendId) => {
+  return apiClient.delete(`/friends/${friendId}`);
+};
+
+
 export default apiClient;

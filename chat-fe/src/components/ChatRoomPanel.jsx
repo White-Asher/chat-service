@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getMessagesByRoomId, getRoomInfo, inviteUsersToRoom, getParticipantsHistory } from '../api';
+import { getMessagesByRoomId, getRoomInfo, inviteUsersToRoom, getParticipantsHistory, getFriendList } from '../api';
 import { connect, disconnect } from '../services/stompClient';
 import {
   Box, TextField, IconButton, List, ListItem, ListItemText, Typography, Paper,
   AppBar, Toolbar, Drawer, Divider, Dialog, DialogTitle, DialogContent,
-  DialogActions, Button, Avatar,
+  DialogActions, Button, Avatar, Checkbox
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import PeopleIcon from '@mui/icons-material/People';
@@ -37,6 +37,8 @@ function ChatRoomPanel({ roomId }) {
   const [inviteNicknames, setInviteNicknames] = useState('');
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [participantsHistory, setParticipantsHistory] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [selectedFriends, setSelectedFriends] = useState([]);
 
   const stompClientRef = useRef(null);
   const messageEndRef = useRef(null);
@@ -85,6 +87,34 @@ function ChatRoomPanel({ roomId }) {
     };
   }, [roomId, user, navigate]);
 
+  useEffect(() => {
+    if (inviteModalOpen) {
+      const fetchFriends = async () => {
+        try {
+          const response = await getFriendList();
+          setFriends(response.data);
+        } catch (error) {
+          console.error('Failed to fetch friends:', error);
+        }
+      };
+      fetchFriends();
+    }
+  }, [inviteModalOpen]);
+
+  const handleFriendToggle = (friend) => {
+    const currentIndex = selectedFriends.findIndex(f => f.userId === friend.userId);
+    const newSelectedFriends = [...selectedFriends];
+
+    if (currentIndex === -1) {
+      newSelectedFriends.push(friend);
+    } else {
+      newSelectedFriends.splice(currentIndex, 1);
+    }
+
+    setSelectedFriends(newSelectedFriends);
+    setInviteNicknames(newSelectedFriends.map(f => f.userNickname).join(', '));
+  };
+
   const handleSendMessage = () => {
     if (newMessage.trim() && stompClientRef.current?.connected) {
       const chatMessage = {
@@ -108,6 +138,7 @@ function ChatRoomPanel({ roomId }) {
       alert('사용자를 초대했습니다.');
       setInviteModalOpen(false);
       setInviteNicknames('');
+      setSelectedFriends([]);
     } catch (error) {
       console.error('Failed to invite users:', error);
       alert('사용자 초대에 실패했습니다.');
@@ -182,11 +213,26 @@ function ChatRoomPanel({ roomId }) {
         </List>
       </Drawer>
       
-      {/* Modals (Invite, History) - no style changes needed for now */}
-      <Dialog open={inviteModalOpen} onClose={() => setInviteModalOpen(false)}>
+      <Dialog open={inviteModalOpen} onClose={() => { setInviteModalOpen(false); setSelectedFriends([]); setInviteNicknames(''); }}>
         <DialogTitle>사용자 초대</DialogTitle>
-        <DialogContent><TextField autoFocus margin="dense" label="초대할 사용자 닉네임 (쉼표로 구분)" fullWidth variant="standard" value={inviteNicknames} onChange={(e) => setInviteNicknames(e.target.value)}/></DialogContent>
-        <DialogActions><Button onClick={() => setInviteModalOpen(false)}>취소</Button><Button onClick={handleInviteUsers}>초대</Button></DialogActions>
+        <DialogContent>
+            <Typography variant="subtitle1" sx={{ mt: 2 }}>친구 목록</Typography>
+            <List dense sx={{ width: '100%', maxHeight: 150, overflow: 'auto', bgcolor: 'background.paper' }}>
+              {friends.map((friend) => (
+                <ListItem key={friend.userId} dense button onClick={() => handleFriendToggle(friend)}>
+                  <Checkbox
+                    edge="start"
+                    checked={selectedFriends.some(f => f.userId === friend.userId)}
+                    tabIndex={-1}
+                    disableRipple
+                  />
+                  <ListItemText primary={friend.userNickname} />
+                </ListItem>
+              ))}
+            </List>
+            <TextField autoFocus margin="dense" label="초대할 사용자 닉네임 (쉼표로 구분)" fullWidth variant="standard" value={inviteNicknames} onChange={(e) => setInviteNicknames(e.target.value)}/>
+        </DialogContent>
+        <DialogActions><Button onClick={() => { setInviteModalOpen(false); setSelectedFriends([]); setInviteNicknames(''); }}>취소</Button><Button onClick={handleInviteUsers}>초대</Button></DialogActions>
       </Dialog>
       <Dialog open={historyModalOpen} onClose={() => setHistoryModalOpen(false)}><DialogTitle>참여자 기록</DialogTitle><DialogContent><List>{participantsHistory.map((h, i) => (<ListItem key={i}><ListItemText primary={h.userNickname} secondary={`입장: ${h.joinedAt}, 퇴장: ${h.quitAt || '참여중'}`}/></ListItem>))}</List></DialogContent><DialogActions><Button onClick={() => setHistoryModalOpen(false)}>닫기</Button></DialogActions></Dialog>
     </Box>

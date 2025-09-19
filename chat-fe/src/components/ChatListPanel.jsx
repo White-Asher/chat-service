@@ -4,6 +4,7 @@ import { useUser } from '../context/UserContext';
 import { getChatRoomsByUserId, leaveChatRoom } from '../api';
 import CreateRoomModal from './CreateRoomModal';
 import SessionTimer from './SessionTimer';
+import FriendsPanel from './FriendsPanel'; // Import FriendsPanel
 import {
   List,
   ListItem,
@@ -15,6 +16,8 @@ import {
   Divider,
   IconButton,
   Button,
+  Tabs, // Import Tabs
+  Tab, // Import Tab
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -25,6 +28,7 @@ function ChatListPanel({ selectedRoomId }) {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tab, setTab] = useState(0); // 0 for chats, 1 for friends
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -102,45 +106,55 @@ function ChatListPanel({ selectedRoomId }) {
           </IconButton>
         </Box>
         <Divider sx={{ borderColor: '#40444b' }} />
-        <Box sx={{ p: 1 }}>
-          <Button fullWidth variant="outlined" onClick={() => setIsModalOpen(true)} startIcon={<AddIcon />}>
-            새 채팅 시작하기
-          </Button>
-        </Box>
-        <Divider sx={{ borderColor: '#40444b' }} />
-        <List sx={{ flexGrow: 1, overflowY: 'auto', p: 1 }}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>
-          ) : rooms.length > 0 ? (
-            rooms.map((room) => (
-              <ListItem key={room.roomId} disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  onClick={() => handleEnterRoom(room.roomId)}
-                  selected={selectedRoomId === String(room.roomId)}
-                >
-                  <ListItemText
-                    primary={room.roomName || '1:1 채팅'}
-                    secondary={`참여자: ${room.participants.length}명`}
-                    primaryTypographyProps={{ fontWeight: 'bold' }}
-                  />
-                   <IconButton
-                      edge="end"
-                      aria-label="leave"
-                      onClick={(e) => handleLeaveRoom(e, room.roomId, room.roomName)}
-                      size="small"
-                      sx={{ ml: 1 }}
+        <Tabs value={tab} onChange={(e, newValue) => setTab(newValue)} variant="fullWidth">
+            <Tab label="Chats" />
+            <Tab label="Friends" />
+        </Tabs>
+        {tab === 0 ? (
+          <>
+            <Box sx={{ p: 1 }}>
+              <Button fullWidth variant="outlined" onClick={() => setIsModalOpen(true)} startIcon={<AddIcon />}>
+                새 채팅 시작하기
+              </Button>
+            </Box>
+            <Divider sx={{ borderColor: '#40444b' }} />
+            <List sx={{ flexGrow: 1, overflowY: 'auto', p: 1 }}>
+              {loading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>
+              ) : rooms.length > 0 ? (
+                rooms.map((room) => (
+                  <ListItem key={room.roomId} disablePadding sx={{ mb: 0.5 }}>
+                    <ListItemButton
+                      onClick={() => handleEnterRoom(room.roomId)}
+                      selected={selectedRoomId === String(room.roomId)}
                     >
-                      <ExitToAppIcon fontSize="small" />
-                    </IconButton>
-                </ListItemButton>
-              </ListItem>
-            ))
-          ) : (
-            <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
-              참여중인 채팅방이 없습니다.
-            </Typography>
-          )}
-        </List>
+                      <ListItemText
+                        primary={room.roomName || '1:1 채팅'}
+                        secondary={`참여자: ${room.participants.length}명`}
+                        primaryTypographyProps={{ fontWeight: 'bold' }}
+                      />
+                       <IconButton
+                          edge="end"
+                          aria-label="leave"
+                          onClick={(e) => handleLeaveRoom(e, room.roomId, room.roomName)}
+                          size="small"
+                          sx={{ ml: 1 }}
+                        >
+                          <ExitToAppIcon fontSize="small" />
+                        </IconButton>
+                    </ListItemButton>
+                  </ListItem>
+                ))
+              ) : (
+                <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
+                  참여중인 채팅방이 없습니다.
+                </Typography>
+              )}
+            </List>
+          </>
+        ) : (
+            <FriendsPanel />
+        )}
       </Box>
       <CreateRoomModal
         open={isModalOpen}

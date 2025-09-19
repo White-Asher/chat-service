@@ -1,6 +1,5 @@
 package com.chat.server.controller;
 
-import com.chat.server.domain.UserBase;
 import com.chat.server.dto.AuthRequest;
 import com.chat.server.dto.UserDto;
 import com.chat.server.service.UserService;
@@ -56,7 +55,8 @@ public class UserController {
 
     // 로그인 API
     @PostMapping("/login")
-    public ResponseEntity<UserDto> login(@RequestBody AuthRequest.Login request, HttpServletRequest httpServletRequest) {
+    public ResponseEntity<UserDto> login(@RequestBody AuthRequest.Login request,
+            HttpServletRequest httpServletRequest) {
         // 1. 사용자 서비스 통해 인증
         UserDto userDto = userService.login(request);
 
@@ -64,8 +64,7 @@ public class UserController {
         Authentication authentication = new UsernamePasswordAuthenticationToken(
                 userDto,
                 null,
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-        );
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
 
         // 3. 새로운 SecurityContext를 생성하고 인증 정보 설정
         SecurityContext context = SecurityContextHolder.createEmptyContext();

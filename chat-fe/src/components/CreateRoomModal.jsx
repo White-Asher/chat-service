@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { createChatRoom } from '../api';
+import React, { useState, useEffect } from 'react';
+import { createChatRoom, getFriendList } from '../api';
 import {
   Modal,
   Box,
   Typography,
   TextField,
   Button,
+  List,
+  ListItem,
+  Checkbox,
+  ListItemText,
+  FormControlLabel
 } from '@mui/material';
 
 const style = {
@@ -23,13 +28,42 @@ const style = {
 function CreateRoomModal({ open, onClose, currentUser, onRoomCreated }) {
   const [roomName, setRoomName] = useState('');
   const [userNicknames, setUserNicknames] = useState('');
+  const [friends, setFriends] = useState([]);
+  const [selectedFriends, setSelectedFriends] = useState([]);
+
+  useEffect(() => {
+    if (open) {
+      const fetchFriends = async () => {
+        try {
+          const response = await getFriendList();
+          setFriends(response.data);
+        } catch (error) {
+          console.error('Failed to fetch friends:', error);
+        }
+      };
+      fetchFriends();
+    }
+  }, [open]);
+
+  const handleFriendToggle = (friend) => {
+    const currentIndex = selectedFriends.findIndex(f => f.userId === friend.userId);
+    const newSelectedFriends = [...selectedFriends];
+
+    if (currentIndex === -1) {
+      newSelectedFriends.push(friend);
+    } else {
+      newSelectedFriends.splice(currentIndex, 1);
+    }
+
+    setSelectedFriends(newSelectedFriends);
+    setUserNicknames(newSelectedFriends.map(f => f.userNickname).join(', '));
+  };
 
   const handleCreateRoom = async () => {
     if (!roomName.trim()) {
       alert('채팅방 이름을 입력해주세요.');
       return;
     }
-    // 입력받은 userNicknames를 문자열 배열로 변환
     const invitedUserNicknames = userNicknames.split(',').map(nickname => nickname.trim()).filter(nickname => nickname);
 
     if (invitedUserNicknames.length === 0) {
@@ -40,13 +74,12 @@ function CreateRoomModal({ open, onClose, currentUser, onRoomCreated }) {
     try {
       const roomData = {
         roomName,
-        // 현재 사용자와 초대된 사용자를 모두 참여자로 추가
         userNicknames: [currentUser.userNickname, ...invitedUserNicknames],
-        roomType: 'GROUP', // 그룹 채팅방으로 생성
+        roomType: 'GROUP',
       };
       const response = await createChatRoom(roomData);
       alert('채팅방이 생성되었습니다.');
-      onClose(); // 모달 닫기
+      onClose();
       if (onRoomCreated) {
         onRoomCreated(response.data.roomId);
       }
@@ -71,6 +104,20 @@ function CreateRoomModal({ open, onClose, currentUser, onRoomCreated }) {
           value={roomName}
           onChange={(e) => setRoomName(e.target.value)}
         />
+        <Typography variant="subtitle1" sx={{ mt: 2 }}>친구 목록</Typography>
+        <List dense sx={{ width: '100%', maxHeight: 150, overflow: 'auto', bgcolor: 'background.paper' }}>
+          {friends.map((friend) => (
+            <ListItem key={friend.userId} dense button onClick={() => handleFriendToggle(friend)}>
+              <Checkbox
+                edge="start"
+                checked={selectedFriends.some(f => f.userId === friend.userId)}
+                tabIndex={-1}
+                disableRipple
+              />
+              <ListItemText primary={friend.userNickname} />
+            </ListItem>
+          ))}
+        </List>
         <TextField
           margin="normal"
           required
