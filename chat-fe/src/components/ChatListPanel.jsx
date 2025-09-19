@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getChatRoomsByUserId, leaveChatRoom } from '../api';
+import { getChatRoomsByUserId, leaveChatRoom, updateNickname } from '../api';
 import CreateRoomModal from './CreateRoomModal';
+import UpdateNicknameModal from './UpdateNicknameModal';
+import InfoModal from './InfoModal';
+import ConfirmModal from './ConfirmModal';
 import SessionTimer from './SessionTimer';
-import FriendsPanel from './FriendsPanel'; // Import FriendsPanel
+import FriendsPanel from './FriendsPanel';
 import {
   List,
   ListItem,
@@ -16,20 +19,31 @@ import {
   Divider,
   IconButton,
   Button,
-  Tabs, // Import Tabs
-  Tab, // Import Tab
+  Tabs,
+  Tab,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import EditIcon from '@mui/icons-material/Edit';
 
 function ChatListPanel({ selectedRoomId }) {
-  const { user, logout } = useUser();
+  const { user, logout, updateUser } = useUser();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tab, setTab] = useState(0); // 0 for chats, 1 for friends
+  const [isCreateRoomModalOpen, setCreateRoomModalOpen] = useState(false);
+  const [isNicknameModalOpen, setNicknameModalOpen] = useState(false);
+  const [isInfoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoModalContent, setInfoModalContent] = useState({ title: '', message: '' });
+  const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmModalContent, setConfirmModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
+  const [tab, setTab] = useState(0);
   const navigate = useNavigate();
+
+  const showInfoModal = (title, message) => {
+    setInfoModalContent({ title, message });
+    setInfoModalOpen(true);
+  };
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -56,28 +70,43 @@ function ChatListPanel({ selectedRoomId }) {
     navigate('/');
   };
 
-  const handleLeaveRoom = async (e, roomId, roomName) => {
-    e.stopPropagation(); // Prevent ListItemButton's onClick
-    if (window.confirm(`'${roomName}' 채팅방을 정말 나가시겠습니까?`)) {
-      try {
-        await leaveChatRoom(roomId);
-        const newRooms = rooms.filter((room) => room.roomId !== roomId);
-        setRooms(newRooms);
-        alert(`'${roomName}' 채팅방에서 나갔습니다.`);
-        // If the currently selected room is the one being left, navigate away
-        if (selectedRoomId === String(roomId)) {
-          navigate('/chat');
-        }
-      } catch (error) {
-        console.error('Failed to leave chat room:', error);
-        alert('채팅방을 나가는 데 실패했습니다.');
-      }
+  const handleUpdateNickname = async (newNickname) => {
+    try {
+      const response = await updateNickname(newNickname);
+      updateUser(response.data);
+      setNicknameModalOpen(false);
+      showInfoModal('성공', '닉네임이 변경되었습니다.');
+    } catch (error) {
+      console.error("Failed to update nickname:", error);
+      showInfoModal('오류', error.response?.data?.message || '닉네임 변경에 실패했습니다.');
     }
   };
 
+  const handleLeaveRoom = (e, roomId, roomName) => {
+    e.stopPropagation();
+    setConfirmModalContent({
+      title: '채팅방 나가기',
+      message: `'${roomName}' 채팅방을 정말 나가시겠습니까?`,
+      onConfirm: async () => {
+        try {
+          await leaveChatRoom(roomId);
+          const newRooms = rooms.filter((room) => room.roomId !== roomId);
+          setRooms(newRooms);
+          showInfoModal('성공', `'${roomName}' 채팅방에서 나갔습니다.`);
+          if (selectedRoomId === String(roomId)) {
+            navigate('/chat');
+          }
+        } catch (error) {
+          console.error('Failed to leave chat room:', error);
+          showInfoModal('오류', '채팅방을 나가는 데 실패했습니다.');
+        }
+      }
+    });
+    setConfirmModalOpen(true);
+  };
+
   const handleRoomCreated = (newRoomId) => {
-    setIsModalOpen(false);
-    // Refetch rooms or add the new room to the list
+    setCreateRoomModalOpen(false);
     const fetchRooms = async () => {
         const response = await getChatRoomsByUserId(user.userId);
         setRooms(response.data);
@@ -97,10 +126,12 @@ function ChatListPanel({ selectedRoomId }) {
         borderRight: '1px solid #40444b'
       }}>
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{user?.userNickname}</Typography>
-            <SessionTimer />
-          </div>
+            <IconButton size="small" onClick={() => setNicknameModalOpen(true)} title="닉네임 변경" sx={{ ml: 0.5 }}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Box>
           <IconButton onClick={handleLogout} title="로그아웃">
             <LogoutIcon />
           </IconButton>
@@ -113,7 +144,7 @@ function ChatListPanel({ selectedRoomId }) {
         {tab === 0 ? (
           <>
             <Box sx={{ p: 1 }}>
-              <Button fullWidth variant="outlined" onClick={() => setIsModalOpen(true)} startIcon={<AddIcon />}>
+              <Button fullWidth variant="outlined" onClick={() => setCreateRoomModalOpen(true)} startIcon={<AddIcon />}>
                 새 채팅 시작하기
               </Button>
             </Box>
@@ -157,10 +188,29 @@ function ChatListPanel({ selectedRoomId }) {
         )}
       </Box>
       <CreateRoomModal
-        open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        open={isCreateRoomModalOpen}
+        onClose={() => setCreateRoomModalOpen(false)}
         currentUser={user}
         onRoomCreated={handleRoomCreated}
+      />
+      <UpdateNicknameModal
+        open={isNicknameModalOpen}
+        onClose={() => setNicknameModalOpen(false)}
+        currentNickname={user?.userNickname}
+        onSave={handleUpdateNickname}
+      />
+      <InfoModal
+        open={isInfoModalOpen}
+        onClose={() => setInfoModalOpen(false)}
+        title={infoModalContent.title}
+        message={infoModalContent.message}
+      />
+      <ConfirmModal
+        open={isConfirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
+        onConfirm={confirmModalContent.onConfirm}
+        title={confirmModalContent.title}
+        message={confirmModalContent.message}
       />
     </>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signUp } from '../api';
+import InfoModal from '../components/InfoModal';
 import {
   Container,
   TextField,
@@ -17,6 +18,8 @@ function SignUpPage() {
   const [password, setPassword] = useState('');
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
+  const [isInfoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoModalContent, setInfoModalContent] = useState({ title: '', message: '' });
   const navigate = useNavigate();
 
   const handleSignUp = async () => {
@@ -26,13 +29,18 @@ function SignUpPage() {
     }
     try {
       await signUp({ loginId, password, nickname });
-      alert('회원가입에 성공했습니다! 로그인 페이지로 이동합니다.');
-      navigate('/'); // 회원가입 성공 후 로그인 페이지로 이동
+      setInfoModalContent({ title: '성공', message: '회원가입에 성공했습니다! 로그인 페이지로 이동합니다.' });
+      setInfoModalOpen(true);
     } catch (err) {
       console.error('Sign up failed:', err);
       const errorMessage = err.response?.data?.message || '회원가입에 실패했습니다. 아이디 또는 닉네임이 중복될 수 있습니다.';
       setError(errorMessage);
     }
+  };
+
+  const handleModalClose = () => {
+    setInfoModalOpen(false);
+    navigate('/'); // 모달 닫고 로그인 페이지로 이동
   };
 
   return (
@@ -96,6 +104,12 @@ function SignUpPage() {
           </Box>
         </Paper>
       </Grid>
+      <InfoModal
+        open={isInfoModalOpen}
+        onClose={handleModalClose}
+        title={infoModalContent.title}
+        message={infoModalContent.message}
+      />
     </Grid>
   );
 }

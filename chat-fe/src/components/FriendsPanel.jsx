@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../context/UserContext';
 import { getFriendList, getPendingFriendRequests, searchUsers, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend } from '../api';
+import InfoModal from './InfoModal';
+import ConfirmModal from './ConfirmModal';
 import { Box, Typography, Tabs, Tab, List, ListItem, ListItemText, Button, TextField, IconButton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CheckIcon from '@mui/icons-material/Check';
@@ -14,6 +16,28 @@ function FriendsPanel() {
     const [pendingRequests, setPendingRequests] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
+    const [isInfoModalOpen, setInfoModalOpen] = useState(false);
+    const [infoModalContent, setInfoModalContent] = useState({ title: '', message: '' });
+    const [isConfirmModalOpen, setConfirmModalOpen] = useState(false);
+    const [confirmModalContent, setConfirmModalContent] = useState({ title: '', message: '', onConfirm: () => {} });
+
+    const showInfoModal = (title, message) => {
+        setInfoModalContent({ title, message });
+        setInfoModalOpen(true);
+    };
+
+    // Debounced search
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchQuery.trim()) {
+                handleSearch(searchQuery);
+            } else {
+                setSearchResults([]);
+            }
+        }, 300); // 300ms delay
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
 
     useEffect(() => {
         if (tab === 0) {
@@ -41,10 +65,9 @@ function FriendsPanel() {
         }
     };
 
-    const handleSearch = async () => {
-        if (!searchQuery.trim()) return;
+    const handleSearch = async (query) => {
         try {
-            const response = await searchUsers(searchQuery);
+            const response = await searchUsers(query);
             setSearchResults(response.data);
         } catch (error) {
             console.error('Failed to search users:', error);
@@ -54,11 +77,11 @@ function FriendsPanel() {
     const handleSendRequest = async (recipientId) => {
         try {
             await sendFriendRequest(recipientId);
-            alert('Friend request sent.');
+            showInfoModal('성공', '친구 요청을 보냈습니다.');
             setSearchResults(searchResults.filter(u => u.userId !== recipientId));
         } catch (error) {
             console.error('Failed to send friend request:', error);
-            alert('Failed to send friend request.');
+            showInfoModal('오류', error.response?.data?.message || '친구 요청에 실패했습니다.');
         }
     };
 
@@ -81,15 +104,22 @@ function FriendsPanel() {
         }
     };
 
-    const handleRemoveFriend = async (friendId) => {
-        if (window.confirm('Are you sure you want to remove this friend?')) {
-            try {
-                await removeFriend(friendId);
-                fetchFriends();
-            } catch (error) {
-                console.error('Failed to remove friend:', error);
+    const handleRemoveFriend = (friendId, friendNickname) => {
+        setConfirmModalContent({
+            title: '친구 삭제',
+            message: `'${friendNickname}'님을 친구 목록에서 삭제하시겠습니까?`,
+            onConfirm: async () => {
+                try {
+                    await removeFriend(friendId);
+                    fetchFriends();
+                    showInfoModal('성공', '친구를 삭제했습니다.');
+                } catch (error) {
+                    console.error('Failed to remove friend:', error);
+                    showInfoModal('오류', '친구 삭제에 실패했습니다.');
+                }
             }
-        }
+        });
+        setConfirmModalOpen(true);
     };
 
     return (
@@ -103,7 +133,7 @@ function FriendsPanel() {
             {tab === 0 && (
                 <List sx={{ flexGrow: 1, overflowY: 'auto' }}>
                     {friends.map(friend => (
-                        <ListItem key={friend.userId} secondaryAction={<IconButton edge="end" onClick={() => handleRemoveFriend(friend.userId)}><DeleteIcon /></IconButton>}>
+                        <ListItem key={friend.userId} secondaryAction={<IconButton edge="end" onClick={() => handleRemoveFriend(friend.userId, friend.userNickname)}><DeleteIcon /></IconButton>}>
                             <ListItemText primary={friend.userNickname} />
                         </ListItem>
                     ))}
@@ -127,10 +157,7 @@ function FriendsPanel() {
 
             {tab === 2 && (
                 <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <TextField label="Search by nickname" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} fullWidth />
-                        <Button variant="contained" onClick={handleSearch}>Search</Button>
-                    </Box>
+                    <TextField label="Search by nickname" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} fullWidth />
                     <List>
                         {searchResults.map(user => (
                             <ListItem key={user.userId} secondaryAction={<IconButton edge="end" onClick={() => handleSendRequest(user.userId)}><AddIcon /></IconButton>}>
@@ -140,6 +167,19 @@ function FriendsPanel() {
                     </List>
                 </Box>
             )}
+            <InfoModal
+                open={isInfoModalOpen}
+                onClose={() => setInfoModalOpen(false)}
+                title={infoModalContent.title}
+                message={infoModalContent.message}
+            />
+            <ConfirmModal
+                open={isConfirmModalOpen}
+                onClose={() => setConfirmModalOpen(false)}
+                onConfirm={confirmModalContent.onConfirm}
+                title={confirmModalContent.title}
+                message={confirmModalContent.message}
+            />
         </Box>
     );
 }

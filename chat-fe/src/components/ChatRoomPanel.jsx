@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { getMessagesByRoomId, getRoomInfo, inviteUsersToRoom, getParticipantsHistory, getFriendList } from '../api';
 import { connect, disconnect } from '../services/stompClient';
+import InfoModal from './InfoModal';
+import SelectFriendsModal from './SelectFriendsModal';
 import {
   Box, TextField, IconButton, List, ListItem, ListItemText, Typography, Paper,
   AppBar, Toolbar, Drawer, Divider, Dialog, DialogTitle, DialogContent,
-  DialogActions, Button, Avatar, Checkbox
+  DialogActions, Button, Avatar, Chip
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import PeopleIcon from '@mui/icons-material/People';
@@ -15,12 +17,29 @@ import HistoryIcon from '@mui/icons-material/History';
 
 const drawerWidth = 240;
 
-const formatTime = (value) => {
+const formatDateTime = (value) => {
   if (!value) return '';
   try {
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const messageDate = new Date(value);
+    if (isNaN(messageDate.getTime())) return '';
+
+    const today = new Date();
+    const isToday = today.getFullYear() === messageDate.getFullYear() &&
+                    today.getMonth() === messageDate.getMonth() &&
+                    today.getDate() === messageDate.getDate();
+
+    if (isToday) {
+      return messageDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+    } else {
+      return messageDate.toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    }
   } catch { return ''; }
 };
 
@@ -34,14 +53,21 @@ function ChatRoomPanel({ roomId }) {
   const [roomName, setRoomName] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [inviteNicknames, setInviteNicknames] = useState('');
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [participantsHistory, setParticipantsHistory] = useState([]);
   const [friends, setFriends] = useState([]);
   const [selectedFriends, setSelectedFriends] = useState([]);
+  const [isInfoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoModalContent, setInfoModalContent] = useState({ title: '', message: '' });
+  const [isSelectFriendsModalOpen, setSelectFriendsModalOpen] = useState(false);
 
   const stompClientRef = useRef(null);
   const messageEndRef = useRef(null);
+
+  const showInfoModal = (title, message) => {
+    setInfoModalContent({ title, message });
+    setInfoModalOpen(true);
+  };
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'auto' });
@@ -65,7 +91,7 @@ function ChatRoomPanel({ roomId }) {
 
     fetchRoomData();
 
-    const stomp = connect(
+    connect(
       (client) => {
         stompClientRef.current = client;
         client.subscribe(`/topic/chat/room/${roomId}`, (message) => {
@@ -91,28 +117,22 @@ function ChatRoomPanel({ roomId }) {
     if (inviteModalOpen) {
       const fetchFriends = async () => {
         try {
+          // 초대 모달에서는 이미 참여중인 친구는 제외하고 목록을 가져온다.
           const response = await getFriendList();
-          setFriends(response.data);
+          const participantIds = participants.map(p => p.userId);
+          const availableFriends = response.data.filter(friend => !participantIds.includes(friend.userId));
+          setFriends(availableFriends);
         } catch (error) {
           console.error('Failed to fetch friends:', error);
         }
       };
       fetchFriends();
     }
-  }, [inviteModalOpen]);
+  }, [inviteModalOpen, participants]);
 
-  const handleFriendToggle = (friend) => {
-    const currentIndex = selectedFriends.findIndex(f => f.userId === friend.userId);
-    const newSelectedFriends = [...selectedFriends];
-
-    if (currentIndex === -1) {
-      newSelectedFriends.push(friend);
-    } else {
-      newSelectedFriends.splice(currentIndex, 1);
-    }
-
+  const handleSelectFriendsConfirm = (newSelectedFriends) => {
     setSelectedFriends(newSelectedFriends);
-    setInviteNicknames(newSelectedFriends.map(f => f.userNickname).join(', '));
+    setSelectFriendsModalOpen(false);
   };
 
   const handleSendMessage = () => {
@@ -130,18 +150,19 @@ function ChatRoomPanel({ roomId }) {
   };
 
   const handleInviteUsers = async () => {
-    if (!inviteNicknames.trim()) return alert('초대할 사용자의 닉네임을 입력해주세요.');
-    const nicknames = inviteNicknames.split(',').map(n => n.trim()).filter(Boolean);
-    if (nicknames.length === 0) return alert('올바른 닉네임을 입력해주세요.');
+    if (selectedFriends.length === 0) {
+      showInfoModal('입력 오류', '초대할 친구를 선택해주세요.');
+      return;
+    }
+    const nicknames = selectedFriends.map(f => f.userNickname);
     try {
       await inviteUsersToRoom(roomId, nicknames);
-      alert('사용자를 초대했습니다.');
+      showInfoModal('성공', '사용자를 초대했습니다.');
       setInviteModalOpen(false);
-      setInviteNicknames('');
       setSelectedFriends([]);
     } catch (error) {
       console.error('Failed to invite users:', error);
-      alert('사용자 초대에 실패했습니다.');
+      showInfoModal('오류', error.response?.data?.message || '사용자 초대에 실패했습니다.');
     }
   };
 
@@ -158,85 +179,96 @@ function ChatRoomPanel({ roomId }) {
   const isNotification = (msg) => msg.type === 'JOIN' || msg.type === 'LEAVE';
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#36393f' }}>
-      <AppBar position="static" sx={{ bgcolor: '#2f3136', boxShadow: 'none', borderBottom: '1px solid #40444b' }}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}># {roomName || '채팅방'}</Typography>
-          <IconButton color="inherit" onClick={() => setInviteModalOpen(true)} title="사용자 초대"><PersonAddIcon /></IconButton>
-          <IconButton color="inherit" onClick={handleViewHistory} title="입장/퇴장 기록"><HistoryIcon /></IconButton>
-          <IconButton color="inherit" onClick={() => setDrawerOpen(true)}><PeopleIcon /></IconButton>
-        </Toolbar>
-      </AppBar>
+    <>
+      <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#36393f' }}>
+        <AppBar position="static" sx={{ bgcolor: '#2f3136', boxShadow: 'none', borderBottom: '1px solid #40444b' }}>
+          <Toolbar>
+            <Typography variant="h6" sx={{ flexGrow: 1 }}># {roomName || '채팅방'}</Typography>
+            <IconButton color="inherit" onClick={() => setInviteModalOpen(true)} title="사용자 초대"><PersonAddIcon /></IconButton>
+            <IconButton color="inherit" onClick={handleViewHistory} title="입장/퇴장 기록"><HistoryIcon /></IconButton>
+            <IconButton color="inherit" onClick={() => setDrawerOpen(true)}><PeopleIcon /></IconButton>
+          </Toolbar>
+        </AppBar>
 
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
-        <List>
-          {messages.map((msg, index) => (
-            <ListItem key={index} sx={{ p: 0, mb: 2, display: 'flex', flexDirection: isNotification(msg) ? 'row' : 'column', alignItems: isNotification(msg) ? 'center' : (msg.senderId === user.userId ? 'flex-end' : 'flex-start') }}>
-              {isNotification(msg) ? (
-                <Typography variant="body2" color="text.secondary" sx={{ width: '100%', textAlign: 'center' }}>
-                  {msg.message}
-                </Typography>
-              ) : (
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexDirection: msg.senderId === user.userId ? 'row-reverse' : 'row' }}>
-                  <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>{msg.senderNickname?.[0]}</Avatar>
-                  <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexDirection: msg.senderId === user.userId ? 'row-reverse' : 'row' }}>
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2 }}>
+          <List>
+            {messages.map((msg, index) => (
+              <ListItem key={index} sx={{ p: 0, mb: 2, display: 'flex', flexDirection: isNotification(msg) ? 'row' : 'column', alignItems: isNotification(msg) ? 'center' : (msg.senderId === user.userId ? 'flex-end' : 'flex-start') }}>
+                {isNotification(msg) ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ width: '100%', textAlign: 'center' }}>
+                    {msg.message}
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexDirection: msg.senderId === user.userId ? 'row-reverse' : 'row' }}>
+                    <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>{msg.senderNickname?.[0]}</Avatar>
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexDirection: msg.senderId === user.userId ? 'row-reverse' : 'row' }}>
                       <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{msg.senderNickname}</Typography>
-                      <Typography variant="caption" color="text.secondary">{formatTime(msg.createdAt)}</Typography>
+                      <Typography variant="caption" color="text.secondary">{formatDateTime(msg.createdAt)}</Typography>
                     </Box>
-                    <Paper sx={{ p: '10px 15px', borderRadius: '10px', bgcolor: msg.senderId === user.userId ? '#7289da' : '#2f3136', color: 'white', mt: 0.5 }}>
-                      <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{msg.message}</Typography>
-                    </Paper>
+                      <Paper sx={{ p: '10px 15px', borderRadius: '10px', bgcolor: msg.senderId === user.userId ? '#7289da' : '#2f3136', color: 'white', mt: 0.5 }}>
+                        <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{msg.message}</Typography>
+                      </Paper>
+                    </Box>
                   </Box>
-                </Box>
-              )}
-            </ListItem>
-          ))}
-          <div ref={messageEndRef} />
-        </List>
-      </Box>
-
-      <Box sx={{ p: 2, backgroundColor: '#2f3136' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#40444b', borderRadius: '8px', p: '5px 10px' }}>
-          <TextField fullWidth variant="standard" InputProps={{ disableUnderline: true }} placeholder={`#${roomName}에 메시지 보내기`} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} />
-          <IconButton color="primary" onClick={handleSendMessage} sx={{ ml: 1 }}><SendIcon /></IconButton>
+                )}
+              </ListItem>
+            ))}
+            <div ref={messageEndRef} />
+          </List>
         </Box>
-      </Box>
 
-      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)} PaperProps={{ sx: { bgcolor: '#2f3136', width: drawerWidth } }}>
-        <Box sx={{ p: 2 }}><Typography variant="h6">참여자 ({participants.length}명)</Typography></Box>
-        <Divider sx={{ borderColor: '#40444b' }} />
-        <List>
-          {participants.map((p) => (
-            <ListItem key={p.userId}><ListItemText primary={p.userNickname} /></ListItem>
-          ))}
-        </List>
-      </Drawer>
-      
-      <Dialog open={inviteModalOpen} onClose={() => { setInviteModalOpen(false); setSelectedFriends([]); setInviteNicknames(''); }}>
-        <DialogTitle>사용자 초대</DialogTitle>
-        <DialogContent>
-            <Typography variant="subtitle1" sx={{ mt: 2 }}>친구 목록</Typography>
-            <List dense sx={{ width: '100%', maxHeight: 150, overflow: 'auto', bgcolor: 'background.paper' }}>
-              {friends.map((friend) => (
-                <ListItem key={friend.userId} dense button onClick={() => handleFriendToggle(friend)}>
-                  <Checkbox
-                    edge="start"
-                    checked={selectedFriends.some(f => f.userId === friend.userId)}
-                    tabIndex={-1}
-                    disableRipple
-                  />
-                  <ListItemText primary={friend.userNickname} />
-                </ListItem>
+        <Box sx={{ p: 2, backgroundColor: '#2f3136' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#40444b', borderRadius: '8px', p: '5px 10px' }}>
+            <TextField fullWidth variant="standard" InputProps={{ disableUnderline: true }} placeholder={`#${roomName}에 메시지 보내기`} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} />
+            <IconButton color="primary" onClick={handleSendMessage} sx={{ ml: 1 }}><SendIcon /></IconButton>
+          </Box>
+        </Box>
+
+        <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)} PaperProps={{ sx: { bgcolor: '#2f3136', width: drawerWidth } }}>
+          <Box sx={{ p: 2 }}><Typography variant="h6">참여자 ({participants.length}명)</Typography></Box>
+          <Divider sx={{ borderColor: '#40444b' }} />
+          <List>
+            {participants.map((p) => (
+              <ListItem key={p.userId}><ListItemText primary={p.userNickname} /></ListItem>
+            ))}
+          </List>
+        </Drawer>
+        
+        <Dialog open={inviteModalOpen} onClose={() => { setInviteModalOpen(false); setSelectedFriends([]); }}>
+          <DialogTitle>사용자 초대</DialogTitle>
+          <DialogContent>
+            <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>초대할 친구</Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, minHeight: '40px', border: '1px solid #ccc', borderRadius: 1, p: 1, mb: 2 }}>
+              {selectedFriends.map((friend) => (
+                <Chip key={friend.userId} label={friend.userNickname} />
               ))}
-            </List>
-            <TextField autoFocus margin="dense" label="초대할 사용자 닉네임 (쉼표로 구분)" fullWidth variant="standard" value={inviteNicknames} onChange={(e) => setInviteNicknames(e.target.value)}/>
-        </DialogContent>
-        <DialogActions><Button onClick={() => { setInviteModalOpen(false); setSelectedFriends([]); setInviteNicknames(''); }}>취소</Button><Button onClick={handleInviteUsers}>초대</Button></DialogActions>
-      </Dialog>
-      <Dialog open={historyModalOpen} onClose={() => setHistoryModalOpen(false)}><DialogTitle>참여자 기록</DialogTitle><DialogContent><List>{participantsHistory.map((h, i) => (<ListItem key={i}><ListItemText primary={h.userNickname} secondary={`입장: ${h.joinedAt}, 퇴장: ${h.quitAt || '참여중'}`}/></ListItem>))}</List></DialogContent><DialogActions><Button onClick={() => setHistoryModalOpen(false)}>닫기</Button></DialogActions></Dialog>
-    </Box>
+            </Box>
+            <Button fullWidth variant="outlined" onClick={() => setSelectFriendsModalOpen(true)}>
+              친구 선택
+            </Button>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setInviteModalOpen(false); setSelectedFriends([]); }}>취소</Button>
+            <Button onClick={handleInviteUsers}>초대</Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog open={historyModalOpen} onClose={() => setHistoryModalOpen(false)}><DialogTitle>참여자 기록</DialogTitle><DialogContent><List>{participantsHistory.map((h, i) => (<ListItem key={i}><ListItemText primary={h.userNickname} secondary={`입장: ${h.joinedAt}, 퇴장: ${h.quitAt || '참여중'}`}/></ListItem>))}</List></DialogContent><DialogActions><Button onClick={() => setHistoryModalOpen(false)}>닫기</Button></DialogActions></Dialog>
+        <InfoModal
+          open={isInfoModalOpen}
+          onClose={() => setInfoModalOpen(false)}
+          title={infoModalContent.title}
+          message={infoModalContent.message}
+        />
+      </Box>
+      <SelectFriendsModal
+        open={isSelectFriendsModalOpen}
+        onClose={() => setSelectFriendsModalOpen(false)}
+        onConfirm={handleSelectFriendsConfirm}
+        friendsList={friends}
+        initialSelectedFriends={selectedFriends}
+      />
+    </>
   );
 }
-
 export default ChatRoomPanel;

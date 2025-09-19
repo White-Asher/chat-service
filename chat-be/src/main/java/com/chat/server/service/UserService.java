@@ -5,6 +5,7 @@ import com.chat.server.dto.AuthRequest;
 import com.chat.server.repository.UserAuthBaseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,14 @@ public class UserService {
     private final UserBaseRepository userBaseRepository;
     private final UserAuthBaseRepository userAuthBaseRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${server.servlet.session.timeout}")
+    private String sessionTimeout;
+
+    private long getSessionTimeoutInMinutes() {
+        String timeoutValue = sessionTimeout.toLowerCase().replace("m", "");
+        return Long.parseLong(timeoutValue);
+    }
 
     @Transactional
     public UserDto createUser(UserDto.CreateRequest request) {
@@ -108,6 +117,28 @@ public class UserService {
         }
 
         // 3. 인증 성공 시, 연결된 프로필 정보를 DTO로 변환하여 반환
-        return UserDto.fromEntity(userAuth.getUserBase());
+        UserDto userDto = UserDto.fromEntity(userAuth.getUserBase());
+        userDto.setSessionTimeoutInMinutes(getSessionTimeoutInMinutes());
+        return userDto;
+    }
+
+    @Transactional
+    public UserDto updateNickname(Long userId, String newNickname) {
+        UserBase user = userBaseRepository.findById(userId)
+            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
+
+        // 현재 닉네임과 동일한지 확인
+        if (user.getUserNickname().equals(newNickname)) {
+            throw new IllegalArgumentException("새 닉네임이 현재 닉네임과 동일합니다.");
+        }
+
+        // 다른 사용자가 이미 사용 중인 닉네임인지 확인
+        if (userBaseRepository.existsByUserNickname(newNickname)) {
+            throw new IllegalArgumentException("이미 사용중인 닉네임입니다.");
+        }
+
+        user.setUserNickname(newNickname);
+        UserBase updatedUser = userBaseRepository.save(user);
+        return UserDto.fromEntity(updatedUser);
     }
 }

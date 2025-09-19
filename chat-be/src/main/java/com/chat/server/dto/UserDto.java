@@ -15,6 +15,7 @@ public class UserDto implements Serializable {
     private Long userId;
     private String userNickname;
     private String profileImgUrl;
+    private Long sessionTimeoutInMinutes;
 
     @Getter
     @Setter

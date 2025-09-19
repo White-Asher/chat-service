@@ -24,7 +24,7 @@ public class FriendService {
     private final UserBaseRepository userBaseRepository;
 
     public List<FriendDto> searchUsers(String nickname, Long currentUserId) {
-        return userFriendRepository.findByUserNicknameContainingAndUserIdNot(nickname, currentUserId)
+        return userBaseRepository.findByUserNicknameContainingAndUserIdNot(nickname, currentUserId)
                 .stream()
                 .map(user -> new FriendDto(user.getUserId(), user.getUserNickname()))
                 .collect(Collectors.toList());

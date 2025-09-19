@@ -28,6 +28,10 @@ function LoginPage() {
     try {
       const response = await apiLogin({ loginId, password });
       login(response.data); // UserContext에 사용자 정보 저장
+      // 서버로부터 받은 세션 타임아웃 시간을 localStorage에 저장
+      if (response.data.sessionTimeoutInMinutes) {
+        localStorage.setItem('sessionTimeoutInMinutes', response.data.sessionTimeoutInMinutes);
+      }
       navigate('/chat'); // 채팅 목록 페이지로 이동
     } catch (err) {
       console.error('Login failed:', err);

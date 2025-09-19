@@ -5,12 +5,16 @@ const UserContext = createContext(null);
 
 export const useUser = () => useContext(UserContext);
 
-const SESSION_DURATION = 5 * 60; // 5분 (초 단위)
+const getSessionDuration = () => {
+  const timeoutInMinutes = localStorage.getItem('sessionTimeoutInMinutes');
+  // localStorage에 값이 있으면 해당 값을 분 -> 초로 변환, 없으면 기본값 60분 -> 초로 변환
+  return (timeoutInMinutes ? parseInt(timeoutInMinutes, 10) : 60) * 60;
+};
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [remainingTime, setRemainingTime] = useState(SESSION_DURATION);
+  const [remainingTime, setRemainingTime] = useState(getSessionDuration());
   const [isRenewalModalOpen, setRenewalModalOpen] = useState(false);
   const [isSessionExpired, setSessionExpired] = useState(false);
 
@@ -41,7 +45,7 @@ export const UserProvider = ({ children }) => {
 
   const startTimer = useCallback(() => {
     stopTimer(); // 기존 타이머 중지
-    setRemainingTime(SESSION_DURATION);
+    setRemainingTime(getSessionDuration());
     timerRef.current = setInterval(() => {
       setRemainingTime(prevTime => {
         if (prevTime <= 1) {
@@ -114,6 +118,10 @@ export const UserProvider = ({ children }) => {
     // 이 예제에서는 단순히 모달을 닫습니다.
   };
 
+  const updateUser = (newUserData) => {
+    setUser(newUserData);
+  };
+
   if (loading) {
     return null; // 초기 세션 확인 중에는 렌더링하지 않음
   }
@@ -122,6 +130,7 @@ export const UserProvider = ({ children }) => {
     user,
     login,
     logout,
+    updateUser, // 닉네임 변경 후 유저 정보 업데이트
     loading,
     remainingTime,
     isRenewalModalOpen,

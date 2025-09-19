@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createChatRoom, getFriendList } from '../api';
+import InfoModal from './InfoModal';
+import SelectFriendsModal from './SelectFriendsModal';
 import {
   Modal,
   Box,
   Typography,
   TextField,
   Button,
-  List,
-  ListItem,
-  Checkbox,
-  ListItemText,
-  FormControlLabel
+  Chip
 } from '@mui/material';
 
 const style = {
@@ -27,12 +25,22 @@ const style = {
 
 function CreateRoomModal({ open, onClose, currentUser, onRoomCreated }) {
   const [roomName, setRoomName] = useState('');
-  const [userNicknames, setUserNicknames] = useState('');
   const [friends, setFriends] = useState([]);
   const [selectedFriends, setSelectedFriends] = useState([]);
+  const [isInfoModalOpen, setInfoModalOpen] = useState(false);
+  const [infoModalContent, setInfoModalContent] = useState({ title: '', message: '' });
+  const [isSelectFriendsModalOpen, setSelectFriendsModalOpen] = useState(false);
+
+  const showInfoModal = (title, message) => {
+    setInfoModalContent({ title, message });
+    setInfoModalOpen(true);
+  };
 
   useEffect(() => {
     if (open) {
+      // 모달이 열릴 때 상태 초기화
+      setRoomName('');
+      setSelectedFriends([]);
       const fetchFriends = async () => {
         try {
           const response = await getFriendList();
@@ -45,98 +53,90 @@ function CreateRoomModal({ open, onClose, currentUser, onRoomCreated }) {
     }
   }, [open]);
 
-  const handleFriendToggle = (friend) => {
-    const currentIndex = selectedFriends.findIndex(f => f.userId === friend.userId);
-    const newSelectedFriends = [...selectedFriends];
-
-    if (currentIndex === -1) {
-      newSelectedFriends.push(friend);
-    } else {
-      newSelectedFriends.splice(currentIndex, 1);
-    }
-
+  const handleSelectFriendsConfirm = (newSelectedFriends) => {
     setSelectedFriends(newSelectedFriends);
-    setUserNicknames(newSelectedFriends.map(f => f.userNickname).join(', '));
+    setSelectFriendsModalOpen(false);
   };
 
   const handleCreateRoom = async () => {
     if (!roomName.trim()) {
-      alert('채팅방 이름을 입력해주세요.');
+      showInfoModal('입력 오류', '채팅방 이름을 입력해주세요.');
       return;
     }
-    const invitedUserNicknames = userNicknames.split(',').map(nickname => nickname.trim()).filter(nickname => nickname);
 
-    if (invitedUserNicknames.length === 0) {
-      alert('초대할 사용자의 닉네임을 1명 이상 입력해주세요.');
+    if (selectedFriends.length === 0) {
+      showInfoModal('입력 오류', '초대할 친구를 1명 이상 선택해주세요.');
       return;
     }
 
     try {
+      const invitedUserNicknames = selectedFriends.map(f => f.userNickname);
       const roomData = {
         roomName,
         userNicknames: [currentUser.userNickname, ...invitedUserNicknames],
         roomType: 'GROUP',
       };
       const response = await createChatRoom(roomData);
-      alert('채팅방이 생성되었습니다.');
-      onClose();
+      showInfoModal('성공', '채팅방이 생성되었습니다.');
+      onClose(); // CreateRoomModal 닫기
       if (onRoomCreated) {
         onRoomCreated(response.data.roomId);
       }
     } catch (error) {
       console.error('Failed to create chat room:', error);
-      const errorMessage = error.response?.data?.error || '채팅방 생성에 실패했습니다. 존재하지 않는 닉네임이 포함되어 있을 수 있습니다.';
-      alert(errorMessage);
+      const errorMessage = error.response?.data?.error || '채팅방 생성에 실패했습니다.';
+      showInfoModal('오류', errorMessage);
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <Box sx={style}>
-        <Typography variant="h6" component="h2">
-          새 그룹 채팅방 만들기
-        </Typography>
-        <TextField
-          margin="normal"
-          required
-          fullWidth
-          label="채팅방 이름"
-          value={roomName}
-          onChange={(e) => setRoomName(e.target.value)}
-        />
-        <Typography variant="subtitle1" sx={{ mt: 2 }}>친구 목록</Typography>
-        <List dense sx={{ width: '100%', maxHeight: 150, overflow: 'auto', bgcolor: 'background.paper' }}>
-          {friends.map((friend) => (
-            <ListItem key={friend.userId} dense button onClick={() => handleFriendToggle(friend)}>
-              <Checkbox
-                edge="start"
-                checked={selectedFriends.some(f => f.userId === friend.userId)}
-                tabIndex={-1}
-                disableRipple
-              />
-              <ListItemText primary={friend.userNickname} />
-            </ListItem>
-          ))}
-        </List>
-        <TextField
-          margin="normal"
-          required
-          fullWidth
-          label="초대할 사용자 닉네임 (쉼표로 구분)"
-          placeholder="예: user2, user3"
-          value={userNicknames}
-          onChange={(e) => setUserNicknames(e.target.value)}
-        />
-        <Button
-          fullWidth
-          variant="contained"
-          sx={{ mt: 2 }}
-          onClick={handleCreateRoom}
-        >
-          만들기
-        </Button>
-      </Box>
-    </Modal>
+    <>
+      <Modal open={open} onClose={onClose}>
+        <Box sx={style}>
+          <Typography variant="h6" component="h2">
+            새 그룹 채팅방 만들기
+          </Typography>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            label="채팅방 이름"
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value)}
+          />
+          <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>초대할 친구</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, minHeight: '40px', border: '1px solid #ccc', borderRadius: 1, p: 1, mb: 2 }}>
+            {selectedFriends.map((friend) => (
+              <Chip key={friend.userId} label={friend.userNickname} />
+            ))}
+          </Box>
+          <Button fullWidth variant="outlined" onClick={() => setSelectFriendsModalOpen(true)}>
+            친구 선택
+          </Button>
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{ mt: 2 }}
+            onClick={handleCreateRoom}
+          >
+            만들기
+          </Button>
+          <InfoModal
+            open={isInfoModalOpen}
+            onClose={() => setInfoModalOpen(false)}
+            title={infoModalContent.title}
+            message={infoModalContent.message}
+          />
+        </Box>
+      </Modal>
+      <SelectFriendsModal
+        open={isSelectFriendsModalOpen}
+        onClose={() => setSelectFriendsModalOpen(false)}
+        onConfirm={handleSelectFriendsConfirm}
+        friendsList={friends}
+        initialSelectedFriends={selectedFriends}
+      />
+    </>
   );
 }
 

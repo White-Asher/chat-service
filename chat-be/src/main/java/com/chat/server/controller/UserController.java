@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.Collections;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -44,6 +45,31 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
         userService.deleteUser(userId);
         return ResponseEntity.ok().build();
+    }
+
+    // 닉네임 변경 API
+    @PutMapping("/me/nickname")
+    public ResponseEntity<UserDto> updateMyNickname(@RequestBody Map<String, String> requestBody, Authentication authentication, HttpServletRequest httpServletRequest) {
+        UserDto currentUser = (UserDto) authentication.getPrincipal();
+        String newNickname = requestBody.get("nickname");
+
+        UserDto updatedUserDto = userService.updateNickname(currentUser.getUserId(), newNickname);
+
+        // 세션에 저장된 Authentication 정보 업데이트
+        Authentication newAuthentication = new UsernamePasswordAuthenticationToken(
+            updatedUserDto,
+            null,
+            authentication.getAuthorities()
+        );
+        SecurityContextHolder.getContext().setAuthentication(newAuthentication);
+
+        // 세션을 가져와 SecurityContext를 명시적으로 저장
+        HttpSession session = httpServletRequest.getSession(false); // 이미 세션이 존재해야 함
+        if (session != null) {
+            session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+        }
+
+        return ResponseEntity.ok(updatedUserDto);
     }
 
     // 회원가입 API

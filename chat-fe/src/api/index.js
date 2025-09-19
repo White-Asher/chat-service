@@ -125,5 +125,10 @@ export const removeFriend = (friendId) => {
   return apiClient.delete(`/friends/${friendId}`);
 };
 
+// 닉네임 변경 API
+export const updateNickname = (nickname) => {
+  return apiClient.put('/users/me/nickname', { nickname });
+};
+
 
 export default apiClient;

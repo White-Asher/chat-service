@@ -2,6 +2,8 @@ package com.chat.server.repository;
 
 import com.chat.server.domain.UserBase;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
 import java.util.Optional;
 
 public interface UserBaseRepository extends JpaRepository<UserBase, Long> {
@@ -20,4 +22,12 @@ public interface UserBaseRepository extends JpaRepository<UserBase, Long> {
      * @return Optional<UserBase>
      */
     Optional<UserBase> findByUserNickname(String nickname);
+
+    /**
+     * 닉네임에 특정 문자열을 포함하고, 자신의 아이디는 제외한 사용자 목록을 조회한다.
+     * @param nickname 검색할 닉네임 문자열
+     * @param userId 제외할 사용자 ID
+     * @return List<UserBase>
+     */
+    List<UserBase> findByUserNicknameContainingAndUserIdNot(String nickname, Long userId);
 }

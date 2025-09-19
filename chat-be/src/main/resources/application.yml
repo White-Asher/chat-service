@@ -4,7 +4,7 @@ server:
   port: 8080
   servlet:
     session:
-      timeout: 5m
+      timeout: 60m
 
 spring:
   #--- 데이터베이스 설정 ---
