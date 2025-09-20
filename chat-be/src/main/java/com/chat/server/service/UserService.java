@@ -14,6 +14,10 @@ import com.chat.server.domain.UserBase;
 import com.chat.server.dto.UserDto;
 import com.chat.server.repository.UserBaseRepository;
 
+/**
+ * 사용자 관리를 위한 비즈니스 로직을 처리하는 서비스다.
+ * 사용자 CRUD, 회원가입, 로그인, 닉네임 변경 등의 기능을 제공한다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -27,11 +31,22 @@ public class UserService {
     @Value("${server.servlet.session.timeout}")
     private String sessionTimeout;
 
+    /**
+     * 세션 타임아웃 값을 분 단위로 변환한다.
+     * @return 세션 타임아웃 시간 (분)
+     */
     private long getSessionTimeoutInMinutes() {
         String timeoutValue = sessionTimeout.toLowerCase().replace("m", "");
         return Long.parseLong(timeoutValue);
     }
 
+    /**
+     * 새로운 사용자를 생성한다.
+     * 닉네임 중복 검사를 수행한 후 사용자 정보를 저장한다.
+     * @param request 사용자 생성 요청 정보
+     * @return 생성된 사용자 정보
+     * @throws IllegalArgumentException 닉네임이 이미 존재하는 경우
+     */
     @Transactional
     public UserDto createUser(UserDto.CreateRequest request) {
         if (userBaseRepository.findByUserNickname(request.getUserNickname()).isPresent()) {
@@ -44,16 +59,28 @@ public class UserService {
         return UserDto.fromEntity(savedUser);
     }
 
+    /**
+     * 특정 사용자의 정보를 조회한다.
+     * @param userId 조회할 사용자 ID
+     * @return 조회된 사용자 정보
+     * @throws IllegalArgumentException 사용자를 찾을 수 없는 경우
+     */
     public UserDto findUserById(Long userId) {
         UserBase user = userBaseRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
         return UserDto.fromEntity(user);
     }
 
+    /**
+     * 특정 사용자의 정보를 수정한다.
+     * @param userId 수정할 사용자 ID
+     * @param request 수정할 사용자 정보
+     * @return 수정된 사용자 정보
+     * @throws IllegalArgumentException 사용자를 찾을 수 없는 경우
+     */
     @Transactional
     public UserDto updateUser(Long userId, UserDto.UpdateRequest request) {
-        // findUserById는 이제 UserBase를 반환하므로, 내부적으로 UserBase를 찾는 별도 메소드를 사용하거나, findUserById를 그대로 사용하고 싶다면 UserBase를 반환하도록 유지해야 합니다.
-        // 여기서는 findUserById가 UserBase를 반환한다고 가정하고 내부 로직을 수정합니다.
+        // 사용자 ID로 조회
         UserBase user = userBaseRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
         user.setUserNickname(request.getUserNickname());
@@ -62,13 +89,21 @@ public class UserService {
         return UserDto.fromEntity(updatedUser);
     }
 
+    /**
+     * 특정 사용자를 삭제한다.
+     * @param userId 삭제할 사용자 ID
+     */
     @Transactional
     public void deleteUser(Long userId) {
         userBaseRepository.deleteById(userId);
     }
 
     /**
-     * 회원가입 비즈니스 로직
+     * 새로운 사용자 계정을 생성한다.
+     * 아이디와 닉네임의 중복 검사를 수행하고, 사용자 프로필과 인증 정보를 각각 저장한다.
+     * @param request 회원가입 요청 정보 (로그인 ID, 비밀번호, 닉네임)
+     * @return 생성된 사용자 정보
+     * @throws IllegalArgumentException 아이디나 닉네임이 이미 사용중인 경우
      */
     @Transactional
     public UserDto signUp(AuthRequest.SignUp request) {
@@ -78,7 +113,7 @@ public class UserService {
             throw new IllegalArgumentException("이미 사용중인 아이디입니다.");
         }
 
-        // 2. 닉네임 중복 체크 (이전에 누락되었던 부분)
+        // 2. 닉네임 중복 체크
         if (userBaseRepository.existsByUserNickname(request.getNickname())) {
             throw new IllegalArgumentException("이미 사용중인 닉네임입니다.");
         }
@@ -90,7 +125,6 @@ public class UserService {
 
         log.info("Created UserBase: {}", savedUserBase);
 
-
         // 4. 사용자 인증 정보(user_auth_base) 저장
         UserAuthBase newUserAuth = new UserAuthBase();
         newUserAuth.setLoginId(request.getLoginId());
@@ -98,12 +132,16 @@ public class UserService {
         newUserAuth.setUserBase(savedUserBase); // 생성된 프로필과 연결
         userAuthBaseRepository.save(newUserAuth);
 
-        // 5. 생성된 사용자 정보를 DTO로 변환하여 반환 (이전에 누락되었던 부분)
+        // 5. 생성된 사용자 정보를 DTO로 변환하여 반환
         return UserDto.fromEntity(savedUserBase);
     }
 
     /**
-     * 로그인 비즈니스 로직
+     * 사용자 로그인 처리를 수행한다.
+     * 로그인 ID와 비밀번호를 검증하여 인증에 성공하면 사용자 정보를 반환한다.
+     * @param request 로그인 요청 정보 (로그인 ID, 비밀번호)
+     * @return 로그인한 사용자 정보 (세션 타임아웃 정보 포함)
+     * @throws IllegalArgumentException 아이디 또는 비밀번호가 일치하지 않는 경우
      */
     @Transactional(readOnly = true)
     public UserDto login(AuthRequest.Login request) {
@@ -122,6 +160,14 @@ public class UserService {
         return userDto;
     }
 
+    /**
+     * 사용자의 닉네임을 변경한다.
+     * 새로운 닉네임의 유효성과 중복 여부를 검사한 후 변경을 수행한다.
+     * @param userId 닉네임을 변경할 사용자 ID
+     * @param newNickname 새로운 닉네임
+     * @return 업데이트된 사용자 정보
+     * @throws IllegalArgumentException 사용자를 찾을 수 없거나, 새 닉네임이 현재 닉네임과 동일하거나, 이미 사용중인 닉네임인 경우
+     */
     @Transactional
     public UserDto updateNickname(Long userId, String newNickname) {
         UserBase user = userBaseRepository.findById(userId)

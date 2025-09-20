@@ -10,6 +10,10 @@ import org.springframework.stereotype.Controller;
 
 import java.time.LocalDateTime;
 
+/**
+ * WebSocket을 통한 실시간 메시지 전송을 처리하는 컨트롤러다.
+ * 클라이언트로부터 메시지를 받아서 저장하고 해당 채팅방을 구독한 모든 클라이언트에게 브로드캐스트한다.
+ */
 @Controller
 @RequiredArgsConstructor
 public class MessageController {
@@ -17,6 +21,11 @@ public class MessageController {
     private final ChatService chatService;
     private final SimpMessageSendingOperations messagingTemplate;
 
+    /**
+     * WebSocket을 통해 받은 메시지를 처리한다.
+     * TALK 타입 메시지는 데이터베이스에 저장하고, 모든 메시지를 해당 채팅방 구독자들에게 브로드캐스트한다.
+     * @param message 클라이언트로부터 받은 채팅 메시지
+     */
     @MessageMapping("/chat/message")
     public void message(ChatMessageDto message) {
         // TALK 타입 메시지만 처리

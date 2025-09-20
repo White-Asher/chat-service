@@ -6,6 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 사용자 기본 정보 엔티티에 대한 데이터 접근을 담당하는 Repository 인터페이스다.
+ * 사용자 프로필 정보의 저장, 조회, 수정, 삭제와 닉네임 기반 검색 등의 데이터베이스 작업을 처리한다.
+ */
 public interface UserBaseRepository extends JpaRepository<UserBase, Long> {
 
     /**
