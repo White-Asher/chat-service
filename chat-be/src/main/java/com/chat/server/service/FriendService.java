@@ -1,5 +1,7 @@
 package com.chat.server.service;
 
+import com.chat.server.exception.CustomException;
+import com.chat.server.exception.ErrorCode;
 import com.chat.server.domain.FriendStatus;
 import com.chat.server.domain.UserBase;
 import com.chat.server.domain.UserFriend;
@@ -46,19 +48,18 @@ public class FriendService {
      * 이미 친구 관계가 존재하는지 확인하고, 없을 경우 PENDING 상태의 친구 요청을 생성한다.
      * @param requesterId 요청 보내는 사용자 ID
      * @param recipientId 요청 받는 사용자 ID
-     * @throws IllegalArgumentException 요청자나 수신자를 찾을 수 없는 경우
-     * @throws IllegalStateException 이미 친구 요청이 존재하거나 친구 관계인 경우
+     * @throws CustomException 요청자, 수신자를 찾을 수 없거나, 이미 친구 요청이 존재하거나 친구 관계인 경우
      */
     @Transactional
     public void sendFriendRequest(Long requesterId, Long recipientId) {
-        UserBase requester = userBaseRepository.findById(requesterId).orElseThrow(() -> new IllegalArgumentException("Requester not found"));
-        UserBase recipient = userBaseRepository.findById(recipientId).orElseThrow(() -> new IllegalArgumentException("Recipient not found"));
+        UserBase requester = userBaseRepository.findById(requesterId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        UserBase recipient = userBaseRepository.findById(recipientId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         UserBase user1 = requesterId < recipientId ? requester : recipient;
         UserBase user2 = requesterId < recipientId ? recipient : requester;
 
         userFriendRepository.findByUser1AndUser2(user1, user2).ifPresent(f -> {
-            throw new IllegalStateException("Friend request already exists or they are already friends.");
+            throw new CustomException(ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS);
         });
 
         UserFriend userFriend = new UserFriend();
@@ -73,11 +74,11 @@ public class FriendService {
      * 받은 친구 요청을 수락한다.
      * 친구 요청의 상태를 ACCEPTED로 변경한다.
      * @param friendId 수락할 친구 관계 ID
-     * @throws IllegalArgumentException 친구 요청을 찾을 수 없는 경우
+     * @throws CustomException 친구 요청을 찾을 수 없는 경우
      */
     @Transactional
     public void acceptFriendRequest(Long friendId) {
-        UserFriend userFriend = userFriendRepository.findById(friendId).orElseThrow(() -> new IllegalArgumentException("Friend request not found"));
+        UserFriend userFriend = userFriendRepository.findById(friendId).orElseThrow(() -> new CustomException(ErrorCode.FRIEND_REQUEST_NOT_FOUND));
         userFriend.setStatus(FriendStatus.ACCEPTED);
         userFriendRepository.save(userFriend);
     }
@@ -97,18 +98,18 @@ public class FriendService {
      * 두 사용자 간의 친구 관계를 데이터베이스에서 삭제한다.
      * @param userId 현재 사용자 ID
      * @param friendToRemoveId 삭제할 친구의 ID
-     * @throws IllegalArgumentException 사용자를 찾을 수 없거나 친구 관계를 찾을 수 없는 경우
+     * @throws CustomException 사용자를 찾을 수 없거나 친구 관계를 찾을 수 없는 경우
      */
     @Transactional
     public void removeFriend(Long userId, Long friendToRemoveId) {
-        UserBase user = userBaseRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
-        UserBase friendToRemove = userBaseRepository.findById(friendToRemoveId).orElseThrow(() -> new IllegalArgumentException("Friend not found"));
+        UserBase user = userBaseRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        UserBase friendToRemove = userBaseRepository.findById(friendToRemoveId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         UserBase user1 = userId < friendToRemoveId ? user : friendToRemove;
         UserBase user2 = userId < friendToRemoveId ? friendToRemove : user;
 
         UserFriend userFriend = userFriendRepository.findByUser1AndUser2(user1, user2)
-                .orElseThrow(() -> new IllegalArgumentException("Friendship not found"));
+                .orElseThrow(() -> new CustomException(ErrorCode.FRIENDSHIP_NOT_FOUND));
 
         userFriendRepository.delete(userFriend);
     }
@@ -118,10 +119,10 @@ public class FriendService {
      * ACCEPTED 상태인 친구 관계만 조회한다.
      * @param userId 조회할 사용자 ID
      * @return 친구 목록
-     * @throws IllegalArgumentException 사용자를 찾을 수 없는 경우
+     * @throws CustomException 사용자를 찾을 수 없는 경우
      */
     public List<FriendDto> getFriendList(Long userId) {
-        UserBase user = userBaseRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        UserBase user = userBaseRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         List<UserFriend> friends1 = userFriendRepository.findByUser1AndStatus(user, FriendStatus.ACCEPTED);
         List<UserFriend> friends2 = userFriendRepository.findByUser2AndStatus(user, FriendStatus.ACCEPTED);
 
@@ -137,10 +138,10 @@ public class FriendService {
      * 현재 사용자가 받은 대기 중인 친구 요청 목록을 조회한다.
      * @param userId 조회할 사용자 ID
      * @return 대기 중인 친구 요청 목록
-     * @throws IllegalArgumentException 사용자를 찾을 수 없는 경우
+     * @throws CustomException 사용자를 찾을 수 없는 경우
      */
     public List<FriendRequestDto> getPendingFriendRequests(Long userId) {
-        UserBase user = userBaseRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found"));
+        UserBase user = userBaseRepository.findById(userId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         return userFriendRepository.findPendingRequests(user)
                 .stream()
                 .map(request -> new FriendRequestDto(request.getFriendId(), request.getRequester().getUserId(), request.getRequester().getUserNickname()))

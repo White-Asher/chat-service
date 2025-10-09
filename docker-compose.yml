@@ -15,7 +15,7 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
     ports:
-      - "3306:3306" # 호스트 포트:컨테이너 포트
+      - "3307:3307" # 호스트 포트:컨테이너 포트
     command:
       # 문자셋 및 콜레이션 설정
       - --character-set-server=utf8mb4

@@ -30,6 +30,7 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+    testRuntimeOnly 'com.h2database:h2'
     // WebSocket
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     // Spring Security
@@ -38,6 +39,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test' // Spring Security 테스트 의존성 추가
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

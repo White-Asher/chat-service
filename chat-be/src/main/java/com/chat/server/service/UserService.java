@@ -1,6 +1,8 @@
 package com.chat.server.service;
 
 import com.chat.server.domain.UserAuthBase;
+import com.chat.server.exception.CustomException;
+import com.chat.server.exception.ErrorCode;
 import com.chat.server.dto.AuthRequest;
 import com.chat.server.repository.UserAuthBaseRepository;
 import lombok.RequiredArgsConstructor;
@@ -45,12 +47,12 @@ public class UserService {
      * 닉네임 중복 검사를 수행한 후 사용자 정보를 저장한다.
      * @param request 사용자 생성 요청 정보
      * @return 생성된 사용자 정보
-     * @throws IllegalArgumentException 닉네임이 이미 존재하는 경우
+     * @throws CustomException 닉네임이 이미 존재하는 경우
      */
     @Transactional
     public UserDto createUser(UserDto.CreateRequest request) {
         if (userBaseRepository.findByUserNickname(request.getUserNickname()).isPresent()) {
-            throw new IllegalArgumentException("이미 존재하는 닉네임입니다.");
+            throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
         }
         UserBase user = new UserBase();
         user.setUserNickname(request.getUserNickname());
@@ -63,11 +65,11 @@ public class UserService {
      * 특정 사용자의 정보를 조회한다.
      * @param userId 조회할 사용자 ID
      * @return 조회된 사용자 정보
-     * @throws IllegalArgumentException 사용자를 찾을 수 없는 경우
+     * @throws CustomException 사용자를 찾을 수 없는 경우
      */
     public UserDto findUserById(Long userId) {
         UserBase user = userBaseRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         return UserDto.fromEntity(user);
     }
 
@@ -76,13 +78,13 @@ public class UserService {
      * @param userId 수정할 사용자 ID
      * @param request 수정할 사용자 정보
      * @return 수정된 사용자 정보
-     * @throws IllegalArgumentException 사용자를 찾을 수 없는 경우
+     * @throws CustomException 사용자를 찾을 수 없는 경우
      */
     @Transactional
     public UserDto updateUser(Long userId, UserDto.UpdateRequest request) {
         // 사용자 ID로 조회
         UserBase user = userBaseRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         user.setUserNickname(request.getUserNickname());
         user.setProfileImgUrl(request.getProfileImgUrl());
         UserBase updatedUser = userBaseRepository.save(user);
@@ -103,19 +105,19 @@ public class UserService {
      * 아이디와 닉네임의 중복 검사를 수행하고, 사용자 프로필과 인증 정보를 각각 저장한다.
      * @param request 회원가입 요청 정보 (로그인 ID, 비밀번호, 닉네임)
      * @return 생성된 사용자 정보
-     * @throws IllegalArgumentException 아이디나 닉네임이 이미 사용중인 경우
+     * @throws CustomException 아이디나 닉네임이 이미 사용중인 경우
      */
     @Transactional
     public UserDto signUp(AuthRequest.SignUp request) {
         log.info("Request: {}", request);
         // 1. 아이디 중복 체크
         if (userAuthBaseRepository.existsByLoginId(request.getLoginId())) {
-            throw new IllegalArgumentException("이미 사용중인 아이디입니다.");
+            throw new CustomException(ErrorCode.DUPLICATE_LOGIN_ID);
         }
 
         // 2. 닉네임 중복 체크
         if (userBaseRepository.existsByUserNickname(request.getNickname())) {
-            throw new IllegalArgumentException("이미 사용중인 닉네임입니다.");
+            throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
         }
 
         // 3. 사용자 프로필 정보(user_base) 저장
@@ -141,17 +143,17 @@ public class UserService {
      * 로그인 ID와 비밀번호를 검증하여 인증에 성공하면 사용자 정보를 반환한다.
      * @param request 로그인 요청 정보 (로그인 ID, 비밀번호)
      * @return 로그인한 사용자 정보 (세션 타임아웃 정보 포함)
-     * @throws IllegalArgumentException 아이디 또는 비밀번호가 일치하지 않는 경우
+     * @throws CustomException 아이디 또는 비밀번호가 일치하지 않는 경우
      */
     @Transactional(readOnly = true)
     public UserDto login(AuthRequest.Login request) {
         // 1. 로그인 아이디로 사용자 인증 정보 조회
         UserAuthBase userAuth = userAuthBaseRepository.findByLoginId(request.getLoginId())
-                .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.LOGIN_INPUT_INVALID));
 
         // 2. 비밀번호 일치 여부 확인
         if (!passwordEncoder.matches(request.getPassword(), userAuth.getPassword())) {
-            throw new IllegalArgumentException("아이디 또는 비밀번호가 일치하지 않습니다.");
+            throw new CustomException(ErrorCode.LOGIN_INPUT_INVALID);
         }
 
         // 3. 인증 성공 시, 연결된 프로필 정보를 DTO로 변환하여 반환
@@ -166,21 +168,21 @@ public class UserService {
      * @param userId 닉네임을 변경할 사용자 ID
      * @param newNickname 새로운 닉네임
      * @return 업데이트된 사용자 정보
-     * @throws IllegalArgumentException 사용자를 찾을 수 없거나, 새 닉네임이 현재 닉네임과 동일하거나, 이미 사용중인 닉네임인 경우
+     * @throws CustomException 사용자를 찾을 수 없거나, 새 닉네임이 현재 닉네임과 동일하거나, 이미 사용중인 닉네임인 경우
      */
     @Transactional
     public UserDto updateNickname(Long userId, String newNickname) {
         UserBase user = userBaseRepository.findById(userId)
-            .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         // 현재 닉네임과 동일한지 확인
         if (user.getUserNickname().equals(newNickname)) {
-            throw new IllegalArgumentException("새 닉네임이 현재 닉네임과 동일합니다.");
+            throw new CustomException(ErrorCode.NICKNAME_UPDATE_FAILED);
         }
 
         // 다른 사용자가 이미 사용 중인 닉네임인지 확인
         if (userBaseRepository.existsByUserNickname(newNickname)) {
-            throw new IllegalArgumentException("이미 사용중인 닉네임입니다.");
+            throw new CustomException(ErrorCode.DUPLICATE_NICKNAME);
         }
 
         user.setUserNickname(newNickname);

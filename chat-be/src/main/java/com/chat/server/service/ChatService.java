@@ -5,7 +5,8 @@ import com.chat.server.dto.ChatMessageDto;
 import com.chat.server.dto.ChatRoomDto;
 import com.chat.server.dto.UserDto;
 import com.chat.server.repository.*;
-import jakarta.persistence.EntityNotFoundException;
+import com.chat.server.exception.CustomException;
+import com.chat.server.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,7 @@ public class ChatService {
      * 참여자 목록을 받아서 채팅방을 생성하고, 모든 참여자에게 JOIN 알림을 전송한다.
      * @param request 채팅방 생성 요청 정보
      * @return 생성된 채팅방 정보
-     * @throws EntityNotFoundException 참여자 닉네임에 해당하는 사용자를 찾을 수 없는 경우
+     * @throws CustomException 참여자 닉네임에 해당하는 사용자를 찾을 수 없는 경우
      */
     @Transactional
     public ChatRoomDto createChatRoom(ChatRoomDto.CreateRequest request) {
@@ -45,7 +46,7 @@ public class ChatService {
 
         List<UserBase> users = request.getUserNicknames().stream()
             .map(nickname -> userBaseRepository.findByUserNickname(nickname)
-                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. 닉네임: " + nickname)))
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND)))
             .collect(Collectors.toList());
 
         List<RoomParticipantsHistory> participants = users.stream()
@@ -104,14 +105,14 @@ public class ChatService {
      * 새로운 채팅 메시지를 저장한다.
      * @param messageDto 저장할 메시지 정보
      * @return 저장된 메시지 엔티티
-     * @throws EntityNotFoundException 채팅방이나 발신자를 찾을 수 없는 경우
+     * @throws CustomException 채팅방이나 발신자를 찾을 수 없는 경우
      */
     @Transactional
     public ChatMessage saveMessage(ChatMessageDto messageDto) {
         ChatRoom chatRoom = chatRoomRepository.findById(messageDto.getRoomId())
-                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다. ID: " + messageDto.getRoomId()));
+                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
         UserBase sender = userBaseRepository.findById(messageDto.getSenderId())
-                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. ID: " + messageDto.getSenderId()));
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         ChatMessage chatMessage = new ChatMessage();
         chatMessage.setChatRoom(chatRoom);
@@ -125,11 +126,11 @@ public class ChatService {
      * 특정 채팅방의 상세 정보를 조회한다.
      * @param roomId 조회할 채팅방 ID
      * @return 채팅방 상세 정보
-     * @throws EntityNotFoundException 채팅방을 찾을 수 없는 경우
+     * @throws CustomException 채팅방을 찾을 수 없는 경우
      */
     public ChatRoomDto findRoomById(Long roomId) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다. ID: " + roomId));
+                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
         return ChatRoomDto.fromEntity(chatRoom);
     }
 
@@ -138,12 +139,12 @@ public class ChatService {
      * 참여자의 퇴장 시간을 기록하고 다른 참여자들에게 퇴장 알림을 전송한다.
      * @param roomId 채팅방 ID
      * @param userId 나갈 사용자 ID
-     * @throws EntityNotFoundException 사용자를 찾을 수 없는 경우
+     * @throws CustomException 사용자를 찾을 수 없는 경우
      */
     @Transactional
     public void removeParticipant(Long roomId, Long userId) {
         UserBase user = userBaseRepository.findById(userId)
-            .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. ID: " + userId));
+            .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         participantsRepository.findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(roomId, userId)
                 .ifPresent(participant -> {
@@ -172,16 +173,16 @@ public class ChatService {
      * 이미 참여 중인 사용자는 제외하고, 새로 초대된 사용자들에게 JOIN 알림을 전송한다.
      * @param roomId 초대할 채팅방 ID
      * @param userNicknames 초대할 사용자들의 닉네임 목록
-     * @throws EntityNotFoundException 채팅방이나 초대할 사용자를 찾을 수 없는 경우
+     * @throws CustomException 채팅방이나 초대할 사용자를 찾을 수 없는 경우
      */
     @Transactional
     public void inviteUsersToRoom(Long roomId, List<String> userNicknames) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new EntityNotFoundException("채팅방을 찾을 수 없습니다. ID: " + roomId));
+                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
         for (String nickname : userNicknames) {
             UserBase user = userBaseRepository.findByUserNickname(nickname)
-                    .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. 닉네임: " + nickname));
+                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
             boolean isAlreadyParticipant = participantsRepository.findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(roomId, user.getUserId()).isPresent();
 
