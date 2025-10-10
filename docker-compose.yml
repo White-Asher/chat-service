@@ -1,4 +1,4 @@
-version: '3.8' # Docker Compose 파일 버전
+# Docker Compose 파일 버전
 
 services:
   # MariaDB 서비스 정의
@@ -13,9 +13,9 @@ services:
       MARIADB_PASSWORD: chat_pwd # 실제 값으로 변경
       TZ: 'Asia/Seoul'
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - mariadb_data_3307:/var/lib/mysql
     ports:
-      - "3307:3307" # 호스트 포트:컨테이너 포트
+      - "3307:3306" # 호스트 포트:컨테이너 포트
     command:
       # 문자셋 및 콜레이션 설정
       - --character-set-server=utf8mb4
@@ -23,4 +23,4 @@ services:
 
 # 데이터 영속화를 위한 명명된 볼륨 정의
 volumes:
-  mariadb_data: # 위 'services'에서 사용한 'mariadb_data' 볼륨을 정의
+  mariadb_data_3307: # mariadb 서비스에서 사용하는 볼륨

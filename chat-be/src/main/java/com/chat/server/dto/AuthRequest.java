@@ -1,5 +1,7 @@
 package com.chat.server.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,16 +21,22 @@ public class AuthRequest {
         /**
          * 사용자 닉네임
          */
+        @NotBlank(message = "닉네임은 필수 입력 값입니다.")
+        @Size(min = 2, max = 10, message = "닉네임은 2자 이상 10자 이하로 입력해주세요.")
         private String nickname;
         
         /**
          * 로그인에 사용할 ID
          */
+        @NotBlank(message = "아이디는 필수 입력 값입니다.")
+        @Size(min = 4, max = 12, message = "아이디는 4자 이상 12자 이하로 입력해주세요.")
         private String loginId;
         
         /**
          * 로그인 비밀번호
          */
+        @NotBlank(message = "비밀번호는 필수 입력 값입니다.")
+        @Size(min = 6, max = 15, message = "비밀번호는 6자 이상 15자 이하로 입력해주세요.")
         private String password;
     }
 

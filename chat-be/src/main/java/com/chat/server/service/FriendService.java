@@ -52,6 +52,10 @@ public class FriendService {
      */
     @Transactional
     public void sendFriendRequest(Long requesterId, Long recipientId) {
+        if (requesterId.equals(recipientId)) {
+            throw new CustomException(ErrorCode.CANNOT_FRIEND_YOURSELF);
+        }
+
         UserBase requester = userBaseRepository.findById(requesterId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         UserBase recipient = userBaseRepository.findById(recipientId).orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 

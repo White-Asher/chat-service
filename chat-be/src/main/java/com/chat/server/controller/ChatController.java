@@ -84,8 +84,9 @@ public class ChatController {
      * @return 빈 응답
      */
     @PostMapping("/room/{roomId}/invite")
-    public ResponseEntity<Void> inviteUsersToRoom(@PathVariable Long roomId, @RequestBody List<String> userNicknames) {
-        chatService.inviteUsersToRoom(roomId, userNicknames);
+    public ResponseEntity<Void> inviteUsersToRoom(@PathVariable Long roomId, @RequestBody List<String> userNicknames, Authentication authentication) {
+        UserDto inviter = (UserDto) authentication.getPrincipal();
+        chatService.inviteUsersToRoom(roomId, inviter.getUserId(), userNicknames);
         return ResponseEntity.ok().build();
     }
 

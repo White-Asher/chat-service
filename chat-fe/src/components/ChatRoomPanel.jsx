@@ -209,12 +209,16 @@ function ChatRoomPanel({ roomId }) {
    * @description 메시지 전송 처리 함수
    */
   const handleSendMessage = () => {
-    if (newMessage.trim() && stompClientRef.current?.connected) {
+    console.log('handleSendMessage called', {
+      newMessage,
+      stompClient: stompClientRef.current,
+      connected: stompClientRef.current?.connected
+    });
+    if (newMessage.trim() && stompClientRef.current && stompClientRef.current.connected) {
       const chatMessage = {
         type: 'TALK', roomId, senderId: user.userId,
         senderNickname: user.userNickname, message: newMessage,
       };
-      // 웹소켓을 통해 메시지 전송
       stompClientRef.current.publish({
         destination: '/app/chat/message',
         body: JSON.stringify(chatMessage),
@@ -316,7 +320,7 @@ function ChatRoomPanel({ roomId }) {
         {/* 메시지 입력 창 */}
         <Box sx={{ p: 2, backgroundColor: '#2f3136' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#40444b', borderRadius: '8px', p: '5px 10px' }}>
-            <TextField fullWidth variant="standard" InputProps={{ disableUnderline: true }} placeholder={`#${roomName}에 메시지 보내기`} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} />
+            <TextField fullWidth variant="standard" InputProps={{ disableUnderline: true }} placeholder={`#${roomName}에 메시지 보내기`} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} />
             <IconButton color="primary" onClick={handleSendMessage} sx={{ ml: 1 }}><SendIcon /></IconButton>
           </Box>
         </Box>

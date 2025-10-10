@@ -20,15 +20,18 @@ public enum ErrorCode {
     DUPLICATE_NICKNAME(HttpStatus.BAD_REQUEST, "U002", "이미 사용중인 닉네임입니다."),
     DUPLICATE_LOGIN_ID(HttpStatus.BAD_REQUEST, "U003", "이미 사용중인 아이디입니다."),
     LOGIN_INPUT_INVALID(HttpStatus.BAD_REQUEST, "U004", "로그인 정보가 올바르지 않습니다."),
-    NICKNAME_UPDATE_FAILED(HttpStatus.BAD_REQUEST, "U005", "닉네임 변경에 실패했습니다."),
+    SAME_AS_CURRENT_NICKNAME(HttpStatus.BAD_REQUEST, "U005", "현재 닉네임과 동일합니다."),
 
     // Friend
     FRIEND_REQUEST_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "F001", "이미 친구 요청을 보냈거나 친구 관계입니다."),
     FRIEND_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "F002", "친구 요청을 찾을 수 없습니다."),
     FRIENDSHIP_NOT_FOUND(HttpStatus.NOT_FOUND, "F003", "친구 관계를 찾을 수 없습니다."),
+    CANNOT_FRIEND_YOURSELF(HttpStatus.BAD_REQUEST, "F004", "자기 자신을 친구로 추가할 수 없습니다."),
 
     // Chat
-    CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CH001", "채팅방을 찾을 수 없습니다.");
+    CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CH001", "채팅방을 찾을 수 없습니다."),
+    USER_ALREADY_IN_CHAT_ROOM(HttpStatus.BAD_REQUEST, "CH002", "이미 채팅방에 참여중인 사용자입니다."),
+    INVALID_INVITATION(HttpStatus.BAD_REQUEST, "CH003", "자기 자신을 채팅방에 초대할 수 없습니다.");
 
 
     private final HttpStatus status;

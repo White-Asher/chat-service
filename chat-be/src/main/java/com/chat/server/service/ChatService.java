@@ -175,35 +175,43 @@ public class ChatService {
      * @param userNicknames 초대할 사용자들의 닉네임 목록
      * @throws CustomException 채팅방이나 초대할 사용자를 찾을 수 없는 경우
      */
-    @Transactional
-    public void inviteUsersToRoom(Long roomId, List<String> userNicknames) {
-        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
-
-        for (String nickname : userNicknames) {
-            UserBase user = userBaseRepository.findByUserNickname(nickname)
-                    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-
-            boolean isAlreadyParticipant = participantsRepository.findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(roomId, user.getUserId()).isPresent();
-
-            if (!isAlreadyParticipant) {
-                RoomParticipantsHistory participant = participantsRepository.findFirstByChatRoom_RoomIdAndUserBase_UserIdOrderByJoinedAtDesc(roomId, user.getUserId())
+        @Transactional
+        public void inviteUsersToRoom(Long roomId, Long inviterId, List<String> userNicknames) {
+            ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                    .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+    
+            for (String nickname : userNicknames) {
+                UserBase userToInvite = userBaseRepository.findByUserNickname(nickname)
+                        .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+    
+                // 자기 자신을 초대하는지 확인
+                if (userToInvite.getUserId().equals(inviterId)) {
+                    throw new CustomException(ErrorCode.INVALID_INVITATION);
+                }
+    
+                // 이미 채팅방에 참여중인지 확인
+                boolean isAlreadyParticipant = participantsRepository.findByChatRoom_RoomIdAndUserBase_UserIdAndQuitAtIsNull(roomId, userToInvite.getUserId()).isPresent();
+                if (isAlreadyParticipant) {
+                    throw new CustomException(ErrorCode.USER_ALREADY_IN_CHAT_ROOM);
+                }
+    
+                // 재초대 로직 (나갔던 사용자를 다시 초대)
+                RoomParticipantsHistory participant = participantsRepository.findFirstByChatRoom_RoomIdAndUserBase_UserIdOrderByJoinedAtDesc(roomId, userToInvite.getUserId())
                         .orElseGet(() -> {
                             RoomParticipantsHistory newParticipant = new RoomParticipantsHistory();
                             newParticipant.setChatRoom(chatRoom);
-                            newParticipant.setUserBase(user);
+                            newParticipant.setUserBase(userToInvite);
                             return newParticipant;
                         });
-
+    
                 participant.setJoinedAt(LocalDateTime.now());
-                participant.setQuitAt(null);
+                participant.setQuitAt(null); // 다시 들어왔으므로 나간 시간 초기화
                 participantsRepository.save(participant);
-
+    
                 // 초대된 사용자에게 JOIN 메시지 전송
-                sendJoinNotification(roomId, user);
+                sendJoinNotification(roomId, userToInvite);
             }
         }
-    }
 
     /**
      * 사용자가 채팅방에 참여했을 때 WebSocket을 통해 JOIN 알림 메시지를 전송한다.

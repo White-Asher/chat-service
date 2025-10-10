@@ -19,7 +19,7 @@ spring:
   #--- JPA 설정 ---
   jpa:
     hibernate:
-      ddl-auto: validate # 애플리케이션 실행 시 엔티티 변경사항을 DB에 자동 반영
+      ddl-auto: update # 애플리케이션 실행 시 엔티티 변경사항을 DB에 자동 반영
     properties:
       hibernate:
         format_sql: true # SQL 쿼리를 보기 좋게 포맷팅
@@ -31,4 +31,4 @@ jwt:
 
 #--- CORS 설정 (React 앱 포트가 3000일 경우) ---
 cors:
-  allowed-origins: http://localhost:3000
+  allowed-origins: http://localhost:5173

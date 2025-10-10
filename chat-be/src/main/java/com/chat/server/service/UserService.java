@@ -177,7 +177,7 @@ public class UserService {
 
         // 현재 닉네임과 동일한지 확인
         if (user.getUserNickname().equals(newNickname)) {
-            throw new CustomException(ErrorCode.NICKNAME_UPDATE_FAILED);
+            throw new CustomException(ErrorCode.SAME_AS_CURRENT_NICKNAME);
         }
 
         // 다른 사용자가 이미 사용 중인 닉네임인지 확인

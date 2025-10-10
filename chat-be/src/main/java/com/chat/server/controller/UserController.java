@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -111,7 +112,7 @@ public class UserController {
      * @return 생성된 사용자 정보
      */
     @PostMapping("/signup")
-    public ResponseEntity<UserDto> signUp(@RequestBody AuthRequest.SignUp request) {
+    public ResponseEntity<UserDto> signUp(@Valid @RequestBody AuthRequest.SignUp request) {
         UserDto userDto = userService.signUp(request);
         return ResponseEntity.ok(userDto);
     }
