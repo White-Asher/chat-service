@@ -1,0 +1,7 @@
+version: '3.8'
+services:
+  k6:
+    build: .
+    volumes:
+      - ./script.js:/script.js
+    command: run /script.js

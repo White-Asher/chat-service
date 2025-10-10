@@ -16,6 +16,7 @@ spring:
     username: chat_user # DB 사용자 이름
     password: chat_pwd # DB 비밀번호
 
+
   #--- JPA 설정 ---
   jpa:
     hibernate:
@@ -32,3 +33,9 @@ jwt:
 #--- CORS 설정 (React 앱 포트가 3000일 경우) ---
 cors:
   allowed-origins: http://localhost:5173
+
+logging:
+  level:
+    root: debug
+    org.springframework: debug
+    org.hibernate: debug
