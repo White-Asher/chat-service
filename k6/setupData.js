@@ -10,10 +10,9 @@ async function login(loginId, password) {
 // 실행: node setupData.js
 
 const axios = require('axios');
-require('dotenv').config();
 
 const api = axios.create({
-  baseURL: process.env.API_URL || 'http://localhost:8081/api', // .env에서 불러오고, 없으면 기본값
+  baseURL: 'http://172.30.1.55:8081/api', // 실제 서버 주소와 포트로 변경
   headers: { 'Content-Type': 'application/json' }
 });
 

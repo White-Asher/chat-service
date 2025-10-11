@@ -1,15 +1,13 @@
 import ws from 'k6/ws';
 import { check, sleep } from 'k6';
-import { env } from 'k6';
 
 export const options = {
   stages: [
-    { duration: '30s', target: 50 },   // 50명까지 30초간 증가
-    { duration: '1m', target: 100 },   // 100명까지 1분간 증가
-    { duration: '1m', target: 200 },   // 200명까지 1분간 증가
-    { duration: '1m', target: 500 },   // 500명까지 1분간 증가
-    { duration: '2m', target: 500 },   // 500명 유지 2분
-    { duration: '30s', target: 0 },    // 0명까지 30초간 감소
+    { duration: '10s', target: 10000 },   // 1만명까지 10초간 증가
+    { duration: '20s', target: 50000 },   // 5만명까지 20초간 증가
+    { duration: '30s', target: 100000 },  // 10만명까지 30초간 증가
+    { duration: '30s', target: 100000 },  // 10만명 유지 30초
+    { duration: '10s', target: 0 },       // 0명까지 10초간 감소
   ],
   thresholds: {
     http_req_failed: ['rate<0.1'], // 에러율 10% 미만
@@ -18,8 +16,7 @@ export const options = {
   },
 };
 
-const WS_URL = env.WS_URL || 'ws://localhost:8081/ws/chat/websocket'; // .env에서 불러오고, 없으면 기본값
-
+const WS_URL = 'ws://172.30.1.55:8081/ws/chat/websocket'; // 실제 서버 WebSocket 엔드포인트에 맞게 수정
 export default function () {
   const params = { tags: { my_tag: 'websocket_test' } };
   const res = ws.connect(WS_URL, params, function (socket) {

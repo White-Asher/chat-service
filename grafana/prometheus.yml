@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'spring-boot'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['host.docker.internal:8081'] # 리눅스 호스트의 8081 포트로 WAS 연결
+
+  - job_name: 'mariadb'
+    static_configs:
+      - targets: ['mysqld-exporter:9104']
