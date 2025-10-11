@@ -11,7 +11,7 @@ import axios from 'axios';
 // 백엔드 서버와 통신하기 위한 Axios 인스턴스 생성
 const apiClient = axios.create({
   // 백엔드 주소 (Spring Boot 서버가 실행 중인 주소)
-  baseURL: 'http://localhost:8080/api',
+  baseURL: 'http://localhost:8081/api',
   headers: {
     'Content-Type': 'application/json',
   },
