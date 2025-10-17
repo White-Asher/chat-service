@@ -24,25 +24,9 @@ services:
     image: prom/mysqld-exporter:latest
     container_name: mysqld-exporter
     environment:
-      - DATA_SOURCE_NAME=exporter:exporter-password@(mariadb:3306)/
+      - DATA_SOURCE_NAME=chat_user:chat_pwd@(host.docker.internal:3307)/chatdb
     ports:
       - "9104:9104"
-    depends_on:
-      - mariadb
-
-  mariadb:
-    image: mariadb:latest
-    container_name: mariadb
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=chatdb
-      - MYSQL_USER=exporter
-      - MYSQL_PASSWORD=exporter-password
-    ports:
-      - "3306:3306"
-    volumes:
-      - mariadb-data:/var/lib/mysql
 
 volumes:
   grafana-data:
-  mariadb-data:
