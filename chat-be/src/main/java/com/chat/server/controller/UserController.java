@@ -14,6 +14,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import org.springframework.web.bind.annotation.*;
 
@@ -180,5 +182,23 @@ public class UserController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserDto user = (UserDto) authentication.getPrincipal();
         return ResponseEntity.ok(user);
+    }
+
+    /**
+     * CSRF 취약점을 테스트하기 위한 닉네임 변경 API
+     * 실제로는 CSRF 토큰 검증이 필요합니다.
+     */
+    @PostMapping("/user/update-nickname-csrf-test")
+    public ResponseEntity<String> updateNicknameForCsrfTest(
+            @AuthenticationPrincipal UserDto user, // UserDto 객체로 받도록 수정
+            @RequestParam String newNickname) {
+        
+        // 실제로는 DB에서 사용자 정보를 찾아 닉네임을 변경해야 합니다.
+        System.out.println("CSRF 테스트: 사용자 '" + user.getUserNickname() + "'의 닉네임을 '" + newNickname + "' (으)로 변경 시도.");
+        
+        // 여기에 UserService를 호출하여 실제 닉네임을 변경하는 로직 추가
+        userService.updateNickname(user.getUserId(), newNickname);
+
+        return ResponseEntity.ok("닉네임이 " + newNickname + "으로 변경되었습니다.");
     }
 }

@@ -114,7 +114,7 @@ public class BoardService {
 
         // 아무런 검증 없이 원본 파일 이름 그대로 저장
         Path targetPath = Paths.get(uploadDir, originalFilename);
-        file.transferTo(targetPath);
+        file.transferTo(targetPath.toFile());
 
         Board board = Board.builder()
                 .title(boardDto.getTitle())
@@ -139,7 +139,7 @@ public class BoardService {
 
         // 3. 파일 저장
         Path targetPath = Paths.get(uploadDir, randomFilename);
-        file.transferTo(targetPath);
+        file.transferTo(targetPath.toFile());
 
         Board board = Board.builder()
                 .title(boardDto.getTitle())

@@ -12,6 +12,8 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.session.web.http.CookieSerializer;
+import org.springframework.session.web.http.DefaultCookieSerializer;
 import java.util.Arrays;
 
 /**
@@ -52,7 +54,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        // configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+        // CSRF 취약점 실습을 위해 일시적으로 로컬 파일 출처(null)를 허용합니다. 실습 후 이 라인을 삭제하고 위 라인의 주석을 해제하세요.
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "null"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
@@ -71,6 +75,21 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * CSRF/CORS 실습을 위해 세션 쿠키의 SameSite 정책을 변경하는 쿠키 시리얼라이저를 설정합니다.
+     * SameSite=None으로 설정하여 다른 출처(file://)에서도 쿠키가 전송되도록 허용합니다.
+     * 주의: 실제 운영 환경에서는 SameSite=Lax 또는 Strict가 권장됩니다.
+     * @return CookieSerializer 커스텀 쿠키 시리얼라이저
+     */
+    @Bean
+    public CookieSerializer cookieSerializer() {
+        DefaultCookieSerializer serializer = new DefaultCookieSerializer();
+        serializer.setSameSite("None");
+        // HTTPS 환경이 아니므로 Secure 플래그는 false로 설정해야 SameSite=None이 동작합니다.
+        serializer.setUseSecureCookie(false);
+        return serializer;
     }
 
 }

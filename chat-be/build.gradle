@@ -44,6 +44,9 @@ dependencies {
 
     // HTML Sanitizer
     implementation 'com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20220608.1'
+
+    // Spring Session Core for CookieSerializer
+    implementation 'org.springframework.session:spring-session-core'
 }
 
 tasks.named('test') {

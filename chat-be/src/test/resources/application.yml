@@ -26,3 +26,6 @@ server:
 
 cors:
   allowed-origins: "*"
+
+file:
+  upload-dir: uploads-test/
