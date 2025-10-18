@@ -248,4 +248,25 @@ export const removeFriend = (friendId) => {
   return apiClient.delete(`/friends/${friendId}`);
 };
 
+// --- Board API --- //
+
+/**
+ * @function getBoards
+ * @description 모든 게시글 목록 조회 API 호출
+ * @returns {Promise} Axios 응답 객체
+ */
+export const getBoards = () => {
+  return apiClient.get('/boards');
+};
+
+/**
+ * @function createBoard
+ * @description 새 게시글 생성 API 호출
+ * @param {object} boardData - 게시글 데이터 (title, content, author)
+ * @returns {Promise} Axios 응답 객체
+ */
+export const createBoard = (boardData) => {
+  return apiClient.post('/boards', boardData);
+};
+
 export default apiClient;

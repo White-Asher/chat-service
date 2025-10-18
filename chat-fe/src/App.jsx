@@ -25,6 +25,7 @@ import { UserProvider, useUser } from './context/UserContext.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import SignUpPage from './pages/SignUpPage.jsx';
 import MainChatPage from './pages/MainChatPage.jsx';
+import BoardPage from './pages/BoardPage.jsx'; // BoardPage import 추가
 
 // MUI 컴포넌트
 import { Box } from '@mui/material';
@@ -81,6 +82,8 @@ function AppContent() {
         <Route path="/chat" element={<PrivateRoute><MainChatPage /></PrivateRoute>} />
         {/* 특정 채팅방 페이지 (인증된 사용자만 접근) */}
         <Route path="/chat/room/:roomId" element={<PrivateRoute><MainChatPage /></PrivateRoute>} />
+        {/* 게시판 페이지 */}
+        <Route path="/board" element={<BoardPage />} />
       </Routes>
     </Box>
   );
