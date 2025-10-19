@@ -1,0 +1,4 @@
+# exporter.cnf
+[client]
+user=chat_user
+password=chat_pwd

@@ -1,0 +1,75 @@
+services:
+  # -------------------
+  # 📦 Application Service
+  # -------------------
+  mariadb:
+    image: mariadb:10.11
+    container_name: chat-db
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: admin
+      MARIADB_DATABASE: chatdb
+      MARIADB_USER: chat_user
+      MARIADB_PASSWORD: chat_pwd
+      TZ: 'Asia/Seoul'
+    volumes:
+      - mariadb_data_3307:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  # -------------------
+  # 📊 Monitoring Stack
+  # -------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    # mysqld-exporter가 먼저 실행된 후 prometheus가 실행되도록 의존성 추가
+    depends_on:
+      - mysqld-exporter
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:latest
+    container_name: mysqld-exporter
+    restart: always
+    volumes:
+      - ./exporter.cnf:/home/.my.cnf
+    command:
+      - --config.my-cnf=/home/.my.cnf
+      - --web.listen-address=:9104
+      - --exporter.lock_wait_timeout=5
+      - --log.level=info
+      - --exporter.log_slow_filter
+      - --collect.info_schema.tables.databases=*
+    ports:
+      - "9104:9104"
+    # mariadb가 먼저 실행된 후 mysqld-exporter가 실행되도록 의존성 추가
+    depends_on:
+      - mariadb
+
+# -------------------
+# 💾 Volumes
+# -------------------
+volumes:
+  mariadb_data_3307: # mariadb 서비스에서 사용하는 볼륨
+  grafana-data:      # grafana 서비스에서 사용하는 볼륨
