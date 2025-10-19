@@ -26,6 +26,12 @@ spring:
         format_sql: true # SQL 쿼리를 보기 좋게 포맷팅
     show-sql: true # 실행되는 SQL 쿼리를 로그로 출력
 
+  #--- 파일 업로드 사이즈 설정 ---
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
 #--- JWT 설정 ---
 jwt:
   secret: VeryVeyrVeryVeryVeryVeryVeryVeryVeryVeryVeryLongAndSecureSecretKeyForJWT # 256비트 이상의 시크릿 키
